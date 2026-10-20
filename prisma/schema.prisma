@@ -1,0 +1,407 @@
+// COBE Practice — data model
+// Media files (recordings, audio, video, documents) are NEVER stored in the DB:
+// only metadata + a private object-storage key.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum ExamMode {
+  PRACTICE
+  SIMULATION
+}
+
+enum ExamLevel {
+  FOUR_POINTS
+  FIVE_POINTS
+  FOUR_AND_FIVE
+  OTHER
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SectionKind {
+  PERSONAL_RESPONSE
+  PROJECT
+  AUDIO_VISUAL
+  GENERAL
+}
+
+enum ChoiceMode {
+  ALL
+  CHOOSE_ONE
+}
+
+enum MediaKind {
+  QUESTION_AUDIO
+  QUESTION_VIDEO
+  QUESTION_IMAGE
+  SOURCE_DOCUMENT
+  RECORDING
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  RETURNED
+}
+
+enum GradingStatus {
+  NONE
+  DRAFT
+  PUBLISHED
+}
+
+model School {
+  id                     String   @id @default(cuid())
+  name                   String
+  // Teachers can join an existing school with this code.
+  teacherInviteCode      String   @unique
+  // Days to keep student recordings; null = use DEFAULT_RECORDING_RETENTION_DAYS, 0 = forever.
+  recordingRetentionDays Int?
+  isDemo                 Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  users      User[]
+  classrooms Classroom[]
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  // Login identifier. Students usually have a username only (no email needed for minors).
+  username           String   @unique
+  email              String?  @unique
+  name               String
+  passwordHash       String
+  role               Role
+  schoolId           String?
+  school             School?  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  isDemo             Boolean  @default(false)
+  failedLogins       Int      @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions          Session[]
+  classroomsTaught  Classroom[]  @relation("ClassroomTeacher")
+  enrollments       Enrollment[]
+  exams             Exam[]       @relation("ExamOwner")
+  rubrics           Rubric[]
+  media             MediaFile[]
+  assignmentsMade   Assignment[] @relation("AssignmentCreator")
+  assignmentTargets AssignmentStudent[]
+  attempts          Attempt[]
+  auditLogs         AuditLog[]
+
+  @@index([schoolId, role])
+}
+
+model Session {
+  // sha256 of the cookie token — the raw token is never stored.
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+
+  @@index([userId])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+}
+
+model Classroom {
+  id         String   @id @default(cuid())
+  schoolId   String
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacherId  String
+  teacher    User     @relation("ClassroomTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  name       String
+  gradeLevel String?
+  // Students can self-join with this code.
+  joinCode   String   @unique
+  joinEnabled Boolean @default(true)
+  archived   Boolean  @default(false)
+  isDemo     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  enrollments Enrollment[]
+  assignments Assignment[]
+
+  @@index([teacherId])
+}
+
+model Enrollment {
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([classroomId, studentId])
+  @@index([studentId])
+}
+
+model Rubric {
+  id          String   @id @default(cuid())
+  // null owner = system rubric available to everyone (read-only).
+  ownerId     String?
+  owner       User?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  // [{ key, label, weight, description, bands: [{ label, min, max, descriptor }] }]
+  criteria    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  exams Exam[]
+}
+
+model Exam {
+  id           String     @id @default(cuid())
+  ownerId      String
+  owner        User       @relation("ExamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  level        ExamLevel  @default(FOUR_AND_FIVE)
+  mode         ExamMode   @default(PRACTICE)
+  status       ExamStatus @default(DRAFT)
+  topics       String[]   @default([])
+  // { totalTimeLimitSec?: number|null, allowBackNavigation: boolean, allowReviewOwnRecording: boolean, shuffle?: false }
+  settings     Json
+  rubricId     String?
+  rubric       Rubric?    @relation(fields: [rubricId], references: [id], onDelete: SetNull)
+  // Copied from (library entry or own exam)
+  sourceExamId String?
+  // Shared library: a library entry is an immutable copy owned by the sharing teacher.
+  isLibraryEntry  Boolean   @default(false)
+  libraryOfExamId String?
+  sharedAt        DateTime?
+  rightsConfirmedAt DateTime?
+  copyCount       Int       @default(0)
+  isDemo       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  sections    ExamSection[]
+  sourceFiles ExamSourceFile[]
+  assignments Assignment[]
+
+  @@index([ownerId, isLibraryEntry])
+  @@index([isLibraryEntry, status])
+}
+
+model ExamSection {
+  id           String      @id @default(cuid())
+  examId       String
+  exam         Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  order        Int
+  title        String
+  instructions String?
+  kind         SectionKind @default(GENERAL)
+  choiceMode   ChoiceMode  @default(ALL)
+  // Shared stimulus for the whole section (e.g. the Part C video clip).
+  mediaId       String?
+  media         MediaFile?  @relation("SectionMedia", fields: [mediaId], references: [id], onDelete: SetNull)
+  maxMediaPlays Int?
+
+  questions Question[]
+
+  @@index([examId, order])
+}
+
+model Question {
+  id              String      @id @default(cuid())
+  sectionId       String
+  section         ExamSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  order           Int
+  title           String?
+  // Main prompt (English). Displayed LTR.
+  prompt          String
+  // Question set items answered in one continuous recording.
+  subQuestions    String[]    @default([])
+  instructions    String?
+  audioId         String?
+  audio           MediaFile?  @relation("QuestionAudio", fields: [audioId], references: [id], onDelete: SetNull)
+  videoId         String?
+  video           MediaFile?  @relation("QuestionVideo", fields: [videoId], references: [id], onDelete: SetNull)
+  imageId         String?
+  image           MediaFile?  @relation("QuestionImage", fields: [imageId], references: [id], onDelete: SetNull)
+  // null = unlimited plays
+  maxMediaPlays   Int?
+  prepTimeSec     Int         @default(0)
+  maxRecordSec    Int         @default(120)
+  allowReRecord   Boolean     @default(true)
+  // Max number of recordings (incl. first). null = unlimited.
+  maxRecordings   Int?
+  points          Int         @default(25)
+
+  @@index([sectionId, order])
+}
+
+model MediaFile {
+  id           String      @id @default(cuid())
+  ownerId      String
+  owner        User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind         MediaKind
+  status       MediaStatus @default(PENDING)
+  storageKey   String      @unique
+  mimeType     String
+  sizeBytes    Int
+  originalName String?
+  durationSec  Float?
+  createdAt    DateTime    @default(now())
+
+  questionAudio Question[]       @relation("QuestionAudio")
+  questionVideo Question[]       @relation("QuestionVideo")
+  questionImage Question[]       @relation("QuestionImage")
+  sections      ExamSection[]    @relation("SectionMedia")
+  sourceOf      ExamSourceFile[]
+  answers       Answer[]
+
+  @@index([ownerId, kind])
+  @@index([status, createdAt])
+}
+
+model ExamSourceFile {
+  id      String    @id @default(cuid())
+  examId  String
+  exam    Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  mediaId String
+  media   MediaFile @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  label   String?
+  createdAt DateTime @default(now())
+
+  @@unique([examId, mediaId])
+}
+
+model Assignment {
+  id           String     @id @default(cuid())
+  examId       String
+  exam         Exam       @relation(fields: [examId], references: [id], onDelete: Restrict)
+  classroomId  String
+  classroom    Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User       @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  // When true only the students in `students` see it; otherwise the whole class.
+  specificStudents Boolean @default(false)
+  opensAt      DateTime   @default(now())
+  dueAt        DateTime?
+  allowLate    Boolean    @default(true)
+  // Max attempts per student; null = unlimited (practice).
+  maxAttempts  Int?
+  instructions String?
+  isDemo       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  students AssignmentStudent[]
+  attempts Attempt[]
+
+  @@index([classroomId])
+  @@index([examId])
+}
+
+model AssignmentStudent {
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([assignmentId, studentId])
+  @@index([studentId])
+}
+
+model Attempt {
+  id            String        @id @default(cuid())
+  assignmentId  String
+  assignment    Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attemptNumber Int
+  status        AttemptStatus @default(IN_PROGRESS)
+  // Frozen copy of the exam at the moment the attempt started. Grading always uses this.
+  examSnapshot  Json
+  // { [sectionId]: questionId } for CHOOSE_ONE sections
+  choices       Json          @default("{}")
+  // Per-question progress state (prep started, media plays) — used to enforce simulation rules.
+  progress      Json          @default("{}")
+  startedAt     DateTime      @default(now())
+  deadlineAt    DateTime?
+  submittedAt   DateTime?
+  gradingStatus GradingStatus @default(NONE)
+  totalScore    Float?
+  overallFeedback String?
+  gradedAt      DateTime?
+  publishedAt   DateTime?
+  returnedAt    DateTime?
+  returnNote    String?
+
+  answers Answer[]
+
+  @@unique([assignmentId, studentId, attemptNumber])
+  @@index([studentId, status])
+  @@index([assignmentId, status])
+}
+
+model Answer {
+  id              String     @id @default(cuid())
+  attemptId       String
+  attempt         Attempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId      String
+  recordingId     String?
+  recording       MediaFile? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  recordingCount  Int        @default(0)
+  durationSec     Float?
+  // { [criterionKey]: 0..100 }
+  criterionScores Json?
+  score           Float?
+  feedback        String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([attemptId, questionId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+}

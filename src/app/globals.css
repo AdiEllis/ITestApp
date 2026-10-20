@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import "@fontsource-variable/heebo";
+
+@theme {
+  --font-sans: "Heebo Variable", "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+
+  --color-canvas: #f6f6f3;
+  --color-surface: #ffffff;
+  --color-subtle: #f1f1ed;
+  --color-line: #e4e3de;
+  --color-line-strong: #d3d2cc;
+
+  --color-ink: #1a1c20;
+  --color-ink-2: #4b5059;
+  --color-ink-3: #7b818b;
+
+  --color-brand: #2e49c4;
+  --color-brand-strong: #233aa3;
+  --color-brand-soft: #edf0fb;
+  --color-brand-line: #c9d1f3;
+
+  --color-rec: #d6363a;
+  --color-rec-soft: #fdeeee;
+
+  --color-ok: #1b7f53;
+  --color-ok-soft: #e7f4ed;
+  --color-warn: #a35f00;
+  --color-warn-soft: #fdf3e1;
+  --color-danger: #be3127;
+  --color-danger-soft: #fbecea;
+
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px rgb(20 22 26 / 0.04), 0 1px 1px rgb(20 22 26 / 0.03);
+  --shadow-pop: 0 10px 30px -10px rgb(20 22 26 / 0.25), 0 2px 6px rgb(20 22 26 / 0.06);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-feature-settings: "tnum" 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  /* English exam content inside the Hebrew UI */
+  [lang="en"] {
+    font-family: "Heebo Variable", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes rec-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(214 54 58 / 0.45); }
+  50% { box-shadow: 0 0 0 10px rgb(214 54 58 / 0); }
+}
+.rec-pulse { animation: rec-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rec-pulse { animation: none; }
+}

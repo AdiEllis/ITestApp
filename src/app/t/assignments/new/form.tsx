@@ -1,0 +1,90 @@
+"use client";
+import { useActionState, useState } from "react";
+import { createAssignmentAction } from "../../_actions/assignments";
+import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { FormMessage } from "@/components/ui/form-message";
+import { cn } from "@/components/ui/cn";
+
+export function AssignForm({
+  exams,
+  classes,
+  defaultExamId,
+  defaultClassroomId,
+}: {
+  exams: { id: string; title: string; mode: string }[];
+  classes: { id: string; name: string; students: { id: string; name: string }[] }[];
+  defaultExamId?: string;
+  defaultClassroomId?: string;
+}) {
+  const [state, action] = useActionState(createAssignmentAction, undefined);
+  const [examId, setExamId] = useState(exams.find((e) => e.id === defaultExamId)?.id ?? exams[0].id);
+  const [classId, setClassId] = useState(classes.find((c) => c.id === defaultClassroomId)?.id ?? classes[0].id);
+  const [target, setTarget] = useState<"class" | "students">("class");
+  const exam = exams.find((e) => e.id === examId);
+  const cls = classes.find((c) => c.id === classId)!;
+  return (
+    <form action={action} className="space-y-5">
+      <Field label="מבחן" htmlFor="examId">
+        <Select id="examId" name="examId" value={examId} onChange={(e) => setExamId(e.target.value)}>
+          {exams.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.title} ({e.mode === "SIMULATION" ? "סימולציה" : "תרגול"})
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="כיתה" htmlFor="classroomId">
+        <Select id="classroomId" name="classroomId" value={classId} onChange={(e) => setClassId(e.target.value)}>
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.students.length} תלמידים)
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <fieldset className="space-y-2">
+        <legend className="mb-1.5 text-sm font-medium">למי</legend>
+        <input type="hidden" name="target" value={target} />
+        <div className="inline-flex rounded-lg bg-subtle p-1 text-sm">
+          {(
+            [
+              ["class", "כל הכיתה"],
+              ["students", "תלמידים מסוימים"],
+            ] as const
+          ).map(([v, l]) => (
+            <button key={v} type="button" onClick={() => setTarget(v)} aria-pressed={target === v} className={cn("h-8 rounded-md px-3 font-medium", target === v ? "bg-surface shadow-sm" : "text-ink-2")}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {target === "students" && (
+          <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-line p-3">
+            {cls.students.length === 0 ? <p className="text-sm text-ink-3">אין תלמידים בכיתה</p> : cls.students.map((s) => <Checkbox key={s.id} name="studentIds" value={s.id} label={s.name} />)}
+          </div>
+        )}
+      </fieldset>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="נפתח ב־" htmlFor="opensAt" hint="ריק = מיד">
+          <Input id="opensAt" name="opensAt" type="datetime-local" dir="ltr" />
+        </Field>
+        <Field label="מועד הגשה" htmlFor="dueAt" hint="ריק = ללא מועד">
+          <Input id="dueAt" name="dueAt" type="datetime-local" dir="ltr" />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="מספר ניסיונות מרבי" htmlFor="maxAttempts" hint="ריק = ללא הגבלה">
+          <Input id="maxAttempts" name="maxAttempts" type="number" min={1} max={50} defaultValue={exam?.mode === "SIMULATION" ? 1 : ""} key={examId} />
+        </Field>
+        <div className="flex items-end pb-2">
+          <Checkbox name="allowLate" defaultChecked label="לאפשר הגשה באיחור" />
+        </div>
+      </div>
+      <Field label="הנחיות לתלמידים (לא חובה)" htmlFor="instructions">
+        <Textarea id="instructions" name="instructions" rows={2} />
+      </Field>
+      <FormMessage state={state} />
+      <SubmitButton pendingText="מקצה…">הקצאה</SubmitButton>
+    </form>
+  );
+}
