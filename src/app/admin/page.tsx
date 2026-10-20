@@ -22,7 +22,7 @@ export default async function AdminHome() {
           ["בתי ספר", schools.length],
           ["מורים", c.TEACHER ?? 0],
           ["תלמידים", c.STUDENT ?? 0],
-          ["הקלטות", `${recordings._count} · ${Math.round((recordings._sum.sizeBytes ?? 0) / 1024 / 1024)}MB`],
+          [`הקלטות (${Math.round((recordings._sum.sizeBytes ?? 0) / 1024 / 1024)} MB)`, recordings._count],
         ].map(([l, v]) => (
           <Card key={l as string} className="p-4">
             <p className="text-sm text-ink-2">{l}</p>
