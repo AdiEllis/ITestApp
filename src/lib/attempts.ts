@@ -38,33 +38,26 @@ export function assignmentAvailability(
   return { ok: true };
 }
 
-/** Starts (or resumes) the student's attempt. Safe against double clicks / concurrent requests. */
+/**
+ * Starts (or resumes) the student's attempt. Serialised per (assignment, student) with a
+ * Postgres advisory lock, so double clicks / parallel requests never create two attempts.
+ */
 export async function startOrResumeAttempt(studentId: string, assignment: Assignment & { exam: { status: string } }) {
-  const existing = await db.attempt.findFirst({
-    where: { assignmentId: assignment.id, studentId, status: "IN_PROGRESS" },
-  });
-  if (existing) return finalizeIfExpired(existing);
-
-  const finished = await db.attempt.count({
-    where: { assignmentId: assignment.id, studentId, status: { in: ["SUBMITTED", "RETURNED"] } },
-  });
-  const returned = await db.attempt.count({ where: { assignmentId: assignment.id, studentId, status: "RETURNED" } });
-  // A returned attempt grants one more try even when the attempt limit was reached.
-  const counted = Math.max(0, finished - returned);
-  const avail = assignmentAvailability(assignment, assignment.exam.status, counted);
-  if (!avail.ok) throw new AppError(409, availabilityMessage(avail.reason));
-
   const exam = await loadExam(assignment.examId);
   if (!exam) throw new AppError(404, "המבחן לא נמצא");
   const snapshot = buildSnapshot(exam);
-  const last = await db.attempt.findFirst({
-    where: { assignmentId: assignment.id, studentId },
-    orderBy: { attemptNumber: "desc" },
-    select: { attemptNumber: true },
-  });
   const limit = snapshot.settings.totalTimeLimitSec;
-  try {
-    const attempt = await db.attempt.create({
+
+  const { attempt, created } = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${assignment.id + ":" + studentId}))`;
+    const existing = await tx.attempt.findFirst({ where: { assignmentId: assignment.id, studentId, status: "IN_PROGRESS" } });
+    if (existing) return { attempt: existing, created: false };
+    // Returned attempts do not count toward the attempt limit (the teacher granted another try).
+    const counted = await tx.attempt.count({ where: { assignmentId: assignment.id, studentId, status: "SUBMITTED" } });
+    const avail = assignmentAvailability(assignment, assignment.exam.status, counted);
+    if (!avail.ok) throw new AppError(409, availabilityMessage(avail.reason));
+    const last = await tx.attempt.findFirst({ where: { assignmentId: assignment.id, studentId }, orderBy: { attemptNumber: "desc" }, select: { attemptNumber: true } });
+    const attempt = await tx.attempt.create({
       data: {
         assignmentId: assignment.id,
         studentId,
@@ -73,15 +66,10 @@ export async function startOrResumeAttempt(studentId: string, assignment: Assign
         deadlineAt: limit ? new Date(Date.now() + limit * 1000) : null,
       },
     });
-    await audit(studentId, "attempt.start", { type: "Attempt", id: attempt.id });
-    return attempt;
-  } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      const again = await db.attempt.findFirst({ where: { assignmentId: assignment.id, studentId, status: "IN_PROGRESS" } });
-      if (again) return again;
-    }
-    throw e;
-  }
+    return { attempt, created: true };
+  });
+  if (created) await audit(studentId, "attempt.start", { type: "Attempt", id: attempt.id });
+  return created ? attempt : finalizeIfExpired(attempt);
 }
 
 export function availabilityMessage(reason: "not_open" | "closed" | "max_attempts" | "unpublished") {

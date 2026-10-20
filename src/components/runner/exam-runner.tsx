@@ -1,4 +1,5 @@
 "use client";
+import { RecordingAudio } from "@/components/media/recording-audio";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -274,7 +275,7 @@ export function ExamRunner(props: RunnerProps) {
             <Button variant="secondary" onClick={() => goTo(index - 1)} disabled={index === 0 || !canGoBack || recorder.state === "recording"}>
               <ArrowRight className="size-4" /> הקודם
             </Button>
-            <span className="text-sm text-ink-3 tabular">
+            <span className="text-sm text-ink-3 tabular" dir="ltr">
               {index + 1} / {steps.length}
             </span>
             {index < steps.length - 1 ? (
@@ -564,9 +565,9 @@ function RecordPanel(props: {
         <div className="space-y-4">
           <UploadLine status={uploadStatus} saved={count > 0} onRetry={props.onRetryUpload} />
           {props.allowReview && answer?.localUrl ? (
-            <audio controls src={answer.localUrl} className="w-full" aria-label="ההקלטה שלך" />
+            <RecordingAudio src={answer.localUrl} className="w-full" aria-label="ההקלטה שלך" />
           ) : props.allowReview && answer?.recordingId ? (
-            <audio controls preload="none" src={`/api/media/${answer.recordingId}`} className="w-full" aria-label="ההקלטה שלך" />
+            <RecordingAudio src={`/api/media/${answer.recordingId}`} className="w-full" aria-label="ההקלטה שלך" />
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-3">
             <span>

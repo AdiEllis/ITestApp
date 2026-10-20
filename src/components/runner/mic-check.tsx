@@ -1,4 +1,5 @@
 "use client";
+import { RecordingAudio } from "@/components/media/recording-audio";
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Mic, Play, RotateCcw, Square } from "lucide-react";
 import { useRecorder, MIC_ERROR_TEXT, recordingSupported } from "@/lib/client/recorder";
@@ -94,7 +95,7 @@ export function MicCheck({ onPassed, compact }: { onPassed?: () => void; compact
       {stage === "playback" && url && (
         <div className="space-y-4">
           <p className="text-sm font-medium">האזינו להקלטת הניסיון:</p>
-          <audio ref={audioRef} controls src={url} className="w-full" />
+          <RecordingAudio ref={audioRef} src={url} className="w-full" />
           {silent && <Alert tone="warn" title="כמעט לא נקלט קול">בדקו שהמיקרופון אינו מושתק ושאתם מדברים קרוב למכשיר.</Alert>}
           <div className="flex flex-wrap gap-2">
             <Button

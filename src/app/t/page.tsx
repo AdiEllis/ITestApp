@@ -39,9 +39,13 @@ export default async function TeacherDashboard() {
       include: { student: { select: { name: true } } },
     }),
     db.assignment.findMany({
-      where: { ...mine, dueAt: { gte: new Date(now.getTime() - 7 * 86400_000) } },
-      orderBy: { dueAt: "asc" },
-      take: 6,
+      where: {
+        ...mine,
+        opensAt: { lte: now },
+        OR: [{ dueAt: { gte: new Date(now.getTime() - 7 * 86400_000) } }, { dueAt: null, createdAt: { gte: new Date(now.getTime() - 30 * 86400_000) } }],
+      },
+      orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
+      take: 8,
       include: {
         exam: { select: { title: true } },
         classroom: { select: { name: true, enrollments: { select: { studentId: true } } } },
@@ -147,7 +151,7 @@ export default async function TeacherDashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="תלמידים שלא הגישו" description="משימות עם מועד הגשה קרוב או שעבר בשבוע האחרון" />
+          <CardHeader title="תלמידים שלא הגישו" description="משימות פתוחות, ומשימות שמועד ההגשה שלהן עבר בשבוע האחרון" />
           {missing.length === 0 ? (
             <EmptyState icon={AlertCircle} title="אין חוסרים" body="כל התלמידים הגישו את המשימות הקרובות." />
           ) : (
@@ -160,7 +164,7 @@ export default async function TeacherDashboard() {
                         {a.exam.title}
                       </p>
                       <p className="text-xs text-ink-3">
-                        {a.classroom.name} · {a.dueAt && a.dueAt < now ? "נסגר" : "עד"} {a.dueAt ? formatDateTime(a.dueAt) : ""}
+                        {a.classroom.name} · {a.dueAt ? `${a.dueAt < now ? "נסגר" : "עד"} ${formatDateTime(a.dueAt)}` : "ללא מועד הגשה"}
                       </p>
                     </div>
                     <span className="text-sm text-warn tabular">

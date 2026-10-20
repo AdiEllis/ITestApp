@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecordingAudio } from "@/components/media/recording-audio";
 import { notFound } from "next/navigation";
 import { ArrowRight, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -111,7 +112,7 @@ export default async function AttemptResult({ params, searchParams }: { params: 
               </div>
               {a?.recording ? (
                 <div className="space-y-1">
-                  <audio controls preload="none" src={`/api/media/${a.recording.id}`} className="w-full" aria-label="ההקלטה שלך" />
+                  <RecordingAudio src={`/api/media/${a.recording.id}`} className="w-full" aria-label="ההקלטה שלך" />
                   <p className="flex items-center gap-1.5 text-xs text-ink-3">
                     <CheckCircle2 className="size-3.5 text-ok" /> הקלטה · {formatDuration(a.durationSec)}
                   </p>

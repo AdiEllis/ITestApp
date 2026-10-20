@@ -1,4 +1,5 @@
 "use client";
+import { RecordingAudio } from "@/components/media/recording-audio";
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -138,7 +139,7 @@ export function Grader(props: {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {props.position && <span className="text-sm text-ink-3 tabular">{props.position.index}/{props.position.total}</span>}
+          {props.position && <span className="text-sm text-ink-3 tabular" dir="ltr">{props.position.index}/{props.position.total}</span>}
           <LinkButton href={props.prevId ? `/t/review/${props.prevId}` : "#"} variant="secondary" size="sm" aria-disabled={!props.prevId} className={!props.prevId ? "pointer-events-none opacity-40" : ""}>
             <ChevronRight className="size-4" /> הקודם
           </LinkButton>
@@ -422,9 +423,7 @@ function RecordingPlayer({ src }: { src: string }) {
   const [rate, setRate] = useState(1);
   return (
     <div className="space-y-2">
-      <audio
-        controls
-        preload="metadata"
+      <RecordingAudio
         src={src}
         className="w-full"
         aria-label="הקלטת התלמיד/ה"
