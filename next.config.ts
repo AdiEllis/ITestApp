@@ -8,6 +8,12 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "microphone=(self), camera=(), geolocation=()" },
 ];
 
+const isProd = process.env.NODE_ENV === "production";
+
+// HSTS is static; the Content-Security-Policy is set at runtime in src/middleware.ts
+// because it depends on the deployed S3_ENDPOINT.
+if (isProd) securityHeaders.push({ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" });
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/client", "bcryptjs"],

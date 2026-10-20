@@ -1,6 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100;
+/** E2E_STORAGE=s3 runs the same suite against an S3-compatible server (e.g. moto/MinIO at S3_ENDPOINT). */
+const s3Env: Record<string, string> =
+  process.env.E2E_STORAGE === "s3"
+    ? {
+        STORAGE_DRIVER: "s3",
+        S3_ENDPOINT: process.env.S3_ENDPOINT ?? "http://localhost:5005",
+        S3_REGION: "us-east-1",
+        S3_BUCKET: process.env.S3_BUCKET ?? "oralprep-e2e",
+        S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID ?? "test",
+        S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ?? "test",
+        S3_FORCE_PATH_STYLE: "true",
+      }
+    : {};
 const DB = process.env.E2E_DATABASE_URL ?? "postgresql://cobe:cobe@localhost:5432/cobe_e2e?schema=public";
 
 /** Chromium with a fake microphone: getUserMedia returns a real generated audio tone. */
@@ -43,6 +56,7 @@ export default defineConfig({
       STORAGE_DRIVER: "local",
       STORAGE_LOCAL_DIR: "./e2e/.tmp/storage",
       ALLOW_TEACHER_SIGNUP: "true",
+      ...s3Env,
     },
   },
 });

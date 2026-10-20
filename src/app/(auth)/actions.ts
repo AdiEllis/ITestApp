@@ -116,6 +116,7 @@ const joinSchema = z.object({
 export async function joinClassAction(_: FormState, form: FormData): Promise<FormState> {
   const ip = await clientIp();
   if (!(await rateLimit(`join:${ip}`, 20, 3600))) return { error: "יותר מדי ניסיונות. נסו שוב מאוחר יותר." };
+  if (form.get("terms") !== "on") return { error: "יש לאשר את מדיניות הפרטיות" };
   const parsed = joinSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
