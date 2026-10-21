@@ -8,7 +8,7 @@
 | בסיס נתונים | **Neon** – מסלול Free | 0.5GB | מאות תלמידים לאורך שנים (רק טקסט וציונים) |
 | הקלטות וקבצים | **Backblaze B2** | 10GB | כ־10,000 הקלטות של שתי דקות. סרטונים תופסים יותר מקום |
 
-זמן משוער: 20–30 דקות, פעם אחת.
+זמן משוער: 15–20 דקות, פעם אחת. בפועל נדרשות **שתי הרשמות** בלבד, Backblaze ו־Vercel. בסיס הנתונים נוצר מתוך Vercel.
 
 ---
 
@@ -27,16 +27,7 @@
    - **Create New Key.**
 5. מופיעים שני ערכים: **keyID** ו־**applicationKey**. **שומרים את שניהם מיד**, כי ה־applicationKey מוצג פעם אחת בלבד.
 
-## שלב 2: Neon (בסיס נתונים)
-
-1. נכנסים ל־**neon.tech** ← **Sign up** (אפשר להתחבר עם חשבון Google או GitHub).
-2. יוצרים פרויקט:
-   - **Name:** `oralprep`.
-   - **Region:** **AWS Europe (Frankfurt)**, הקרוב ביותר לישראל.
-3. במסך הפרויקט לוחצים **Connect**. מופיעה כתובת שמתחילה ב־`postgresql://`. **שומרים אותה.**
-4. אם יש בחלון מתג **Connection pooling**, שומרים גם את הכתובת כשהוא **כבוי** (בלי `-pooler` בכתובת). זו הכתובת ה"ישירה".
-
-## שלב 3: Vercel (השרת)
+## שלב 2: Vercel (השרת ובסיס הנתונים)
 
 1. נכנסים ל־**vercel.com** ← **Sign Up** ← **Hobby** ← **Continue with GitHub**, עם חשבון ה־GitHub שבו נמצא `AdiEllis/ITestApp`.
 2. **Add New…** ← **Project** ← לצד `ITestApp` לוחצים **Import**.
@@ -44,8 +35,6 @@
 
    | Name | Value |
    |---|---|
-   | `DATABASE_URL` | כתובת Neon משלב 2 |
-   | `DATABASE_URL_UNPOOLED` | הכתובת הישירה (בלי `-pooler`). אם אין, אותה כתובת |
    | `STORAGE_DRIVER` | `s3` |
    | `S3_ENDPOINT` | `https://` ואחריו ה־Endpoint משלב 1, למשל `https://s3.us-east-005.backblazeb2.com` |
    | `S3_REGION` | החלק האמצעי של ה־Endpoint, למשל `us-east-005` |
@@ -54,12 +43,16 @@
    | `S3_SECRET_ACCESS_KEY` | ה־applicationKey |
    | `CRON_SECRET` | מחרוזת ארוכה כלשהי באנגלית ובמספרים, לפחות 20 תווים. משמשת את משימת הניקוי היומית |
 
-4. לוחצים **Deploy** ומחכים 2–4 דקות. בסוף מופיעה כתובת האתר, למשל `https://itestapp.vercel.app`.
+4. לוחצים **Deploy**. הפריסה הראשונה **תיכשל**, כי עדיין אין בסיס נתונים. זה צפוי.
+5. בפרויקט ב־Vercel: לשונית **Storage** ← **Create Database** ← **Neon** ← מסלול **Free**, אזור **Frankfurt** ← **Connect** לפרויקט.
+
+   Vercel יוצר את בסיס הנתונים ומוסיף את `DATABASE_URL` ואת `DATABASE_URL_UNPOOLED` בעצמו, בלי חשבון נוסף.
+6. **Deployments** ← בפריסה האחרונה **⋯** ← **Redeploy**, ומחכים 2–4 דקות. בסוף מופיעה כתובת האתר, למשל `https://itestapp.vercel.app`.
 
    בזמן הבנייה המערכת מכינה את בסיס הנתונים ומגדירה את האחסון בעצמה. אם משהו חסר או שגוי, הבנייה נכשלת עם הודעה ברורה.
-5. **(מומלץ)** ב־Vercel: **Settings** ← **Environment Variables** ← מוסיפים `APP_URL` עם כתובת האתר, ואז **Deployments** ← **Redeploy**.
+7. **(מומלץ)** ב־Vercel: **Settings** ← **Environment Variables** ← מוסיפים `APP_URL` עם כתובת האתר, ואז **Deployments** ← **Redeploy**.
 
-## שלב 4: בדיקה ראשונה (5 דקות)
+## שלב 3: בדיקה ראשונה (5 דקות)
 
 1. נכנסים לכתובת האתר ← **פתיחת חשבון מורה**.
 2. יוצרים כיתה ומוסיפים תלמיד/ת ניסיון.
