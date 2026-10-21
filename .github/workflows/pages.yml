@@ -1,0 +1,32 @@
+# Builds the no-server version (lite/) and publishes it to the gh-pages branch (GitHub Pages).
+name: Publish OralPrep Lite
+on:
+  push:
+    branches: [claude/cobe-oral-practice, main]
+    paths: ["lite/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        working-directory: lite
+        run: |
+          npm ci
+          npx vite build
+          touch dist/.nojekyll
+      - name: Push to gh-pages
+        run: |
+          cd lite/dist
+          git init -q -b gh-pages
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Publish ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

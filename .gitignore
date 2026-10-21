@@ -12,3 +12,7 @@ next-env.d.ts
 /playwright-report
 /e2e/.tmp
 /storage-test
+/lite/node_modules
+/lite/dist
+/lite/e2e/.tmp
+/lite/test-results
