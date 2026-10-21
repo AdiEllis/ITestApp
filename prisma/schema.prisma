@@ -232,6 +232,8 @@ model ExamSection {
   // Shared stimulus for the whole section (e.g. the Part C video clip).
   mediaId       String?
   media         MediaFile?  @relation("SectionMedia", fields: [mediaId], references: [id], onDelete: SetNull)
+  // Alternative to an uploaded clip: a YouTube / Vimeo / Google Drive / https mp4 link.
+  videoUrl      String?
   maxMediaPlays Int?
 
   questions Question[]
@@ -256,6 +258,7 @@ model Question {
   video           MediaFile?  @relation("QuestionVideo", fields: [videoId], references: [id], onDelete: SetNull)
   imageId         String?
   image           MediaFile?  @relation("QuestionImage", fields: [imageId], references: [id], onDelete: SetNull)
+  videoUrl        String?
   // null = unlimited plays
   maxMediaPlays   Int?
   prepTimeSec     Int         @default(0)

@@ -12,6 +12,7 @@ export interface BuilderQuestion {
   audioId: string | null;
   videoId: string | null;
   imageId: string | null;
+  videoUrl: string | null;
   maxMediaPlays: number | null;
   prepTimeSec: number;
   maxRecordSec: number;
@@ -27,6 +28,7 @@ export interface BuilderSection {
   kind: "PERSONAL_RESPONSE" | "PROJECT" | "AUDIO_VISUAL" | "GENERAL";
   choiceMode: "ALL" | "CHOOSE_ONE";
   mediaId: string | null;
+  videoUrl: string | null;
   maxMediaPlays: number | null;
   questions: BuilderQuestion[];
 }
@@ -67,6 +69,7 @@ export function toBuilderState(exam: ExamWithContent): { exam: BuilderExam; medi
           kind: s.kind,
           choiceMode: s.choiceMode,
           mediaId: s.mediaId,
+          videoUrl: s.videoUrl,
           maxMediaPlays: s.maxMediaPlays,
           questions: s.questions.map((q) => {
             track(q.audio);
@@ -82,6 +85,7 @@ export function toBuilderState(exam: ExamWithContent): { exam: BuilderExam; medi
               audioId: q.audioId,
               videoId: q.videoId,
               imageId: q.imageId,
+              videoUrl: q.videoUrl,
               maxMediaPlays: q.maxMediaPlays,
               prepTimeSec: q.prepTimeSec,
               maxRecordSec: q.maxRecordSec,

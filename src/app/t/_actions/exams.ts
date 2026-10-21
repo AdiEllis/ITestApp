@@ -136,6 +136,7 @@ const questionInput = z.object({
   audioId: nullableId,
   videoId: nullableId,
   imageId: nullableId,
+  videoUrl: z.string().trim().max(500).nullable(),
   maxMediaPlays: z.number().int().min(1).max(20).nullable(),
   prepTimeSec: z.number().int().min(0).max(600),
   maxRecordSec: z.number().int().min(10).max(900),
@@ -150,6 +151,7 @@ const sectionInput = z.object({
   kind: z.enum(["PERSONAL_RESPONSE", "PROJECT", "AUDIO_VISUAL", "GENERAL"]),
   choiceMode: z.enum(["ALL", "CHOOSE_ONE"]),
   mediaId: nullableId,
+  videoUrl: z.string().trim().max(500).nullable(),
   maxMediaPlays: z.number().int().min(1).max(20).nullable(),
   questions: z.array(questionInput).max(30),
 });
@@ -241,6 +243,7 @@ export async function saveExamAction(
           kind: s.kind,
           choiceMode: s.choiceMode,
           mediaId: s.mediaId,
+          videoUrl: s.videoUrl || null,
           maxMediaPlays: s.maxMediaPlays,
         };
         const section = s.id
@@ -248,7 +251,7 @@ export async function saveExamAction(
           : await tx.examSection.create({ data: { ...sectionData, examId } });
         for (const [j, q] of s.questions.entries()) {
           const { id: qid, ...rest } = q;
-          const data = { ...rest, order: j, sectionId: section.id, title: q.title || null, instructions: q.instructions || null, subQuestions: q.subQuestions.map((x) => x.trim()).filter(Boolean) };
+          const data = { ...rest, videoUrl: q.videoUrl || null, order: j, sectionId: section.id, title: q.title || null, instructions: q.instructions || null, subQuestions: q.subQuestions.map((x) => x.trim()).filter(Boolean) };
           if (qid) await tx.question.update({ where: { id: qid }, data });
           else await tx.question.create({ data });
         }

@@ -29,6 +29,8 @@ import { cn } from "@/components/ui/cn";
 import { LevelMeter } from "@/components/media/level-meter";
 import { ProgressBar } from "@/components/media/progress-bar";
 import { LimitedMedia } from "./limited-media";
+import { VideoEmbed } from "@/components/media/video-embed";
+import { parseVideo } from "@/lib/video";
 import { useRecordingUploads, type SavedAnswer, type UploadStatus } from "./use-uploads";
 
 type Progress = { plays?: Record<string, number>; prepStarted?: Record<string, string>; position?: number };
@@ -334,6 +336,7 @@ function StepView(props: {
         )}
       </div>
 
+      {parseVideo(section.videoUrl ?? "") && <VideoEmbed src={parseVideo(section.videoUrl ?? "")!} />}
       {section.mediaId && section.mediaMime && (
         <LimitedMedia
           src={`/api/media/${section.mediaId}`}
@@ -402,12 +405,13 @@ function QuestionView(props: Parameters<typeof StepView>[0] & { question: Snapsh
             {q.instructions}
           </En>
         )}
-        {(q.audioId || q.videoId || q.imageId) && (
+        {(q.audioId || q.videoId || q.imageId || parseVideo(q.videoUrl ?? "")) && (
           <div className="mt-5 space-y-3">
             {q.imageId && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={`/api/media/${q.imageId}`} alt="" className="max-h-80 w-full rounded-xl border border-line object-contain" />
             )}
+            {parseVideo(q.videoUrl ?? "") && <VideoEmbed src={parseVideo(q.videoUrl ?? "")!} />}
             {q.videoId && (
               <LimitedMedia src={`/api/media/${q.videoId}`} mimeType={media[q.videoId]?.mimeType ?? "video/mp4"} limit={q.maxMediaPlays} used={plays[`${q.id}:video`] ?? 0} onPlay={() => props.onPlay(`${q.id}:video`)} label="סרטון השאלה" />
             )}

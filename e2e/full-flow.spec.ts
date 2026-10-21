@@ -109,6 +109,11 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await expect(teacher.getByText("לא ניתן לפרסם עדיין")).toBeVisible();
     await expect(teacher.getByText(/Audio-Visual\) יש להעלות סרטון/)).toBeVisible();
 
+    // Video suggestions point to the official COBE page and labelled teacher collections.
+    await teacher.getByRole("button", { name: "הצעת סרטון" }).first().click();
+    await expect(teacher.getByRole("link", { name: /משרד החינוך – דף ה־COBE הרשמי/ })).toBeVisible();
+    await expect(teacher.getByText("אתר מורים – לא רשמי").first()).toBeVisible();
+
     const sectionMediaInput = teacher.locator('input[type=file][accept^="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,video/mp4"]');
     await sectionMediaInput.setInputFiles(path.join(FIX, "clip.webm"));
     await expect(teacher.locator('video[src^="/api/media/"]').first()).toBeVisible({ timeout: 30_000 });
@@ -140,6 +145,9 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await teacher.getByPlaceholder("Let's talk about…").fill("Listen to the recording and describe what you hear.");
     await teacher.locator("select").filter({ hasText: "מהקבצים שהועלו" }).first().selectOption({ label: "question.mp3" });
     await expect(teacher.locator('audio[src^="/api/media/"]').first()).toBeVisible();
+    // A pasted YouTube link is embedded (privacy-enhanced) instead of uploading a file.
+    await teacher.getByLabel("קישור לסרטון (במקום העלאה)").fill("https://youtu.be/dQw4w9WgXcQ");
+    await expect(teacher.locator('iframe[src^="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"]')).toBeVisible();
     await expect(teacher.getByText("נשמר", { exact: true })).toBeVisible({ timeout: 15_000 });
     await teacher.getByRole("button", { name: "פרסום" }).click();
     await expect(teacher.getByText("המבחן פורסם")).toBeVisible();

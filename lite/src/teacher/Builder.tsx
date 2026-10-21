@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronDown, Copy, ExternalLink, Layers, Link2, Plus, Send, Trash2, Volume2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, Copy, ExternalLink, Layers, Lightbulb, Link2, Plus, Send, Trash2, Volume2, X } from "lucide-react";
 import type { Exam, Question, Section } from "../lib/types";
 import { KIND_LABELS, LEVEL_LABELS } from "../lib/types";
 import { exams, settings, submissions } from "../lib/store";
@@ -7,6 +7,7 @@ import { useStore } from "../lib/use-store";
 import { newQuestion, COBE_DEFAULTS } from "../lib/cobe";
 import { examLink } from "../lib/codec";
 import { parseVideo } from "../lib/video";
+import { VIDEO_SOURCES } from "../lib/video-sources";
 import { speak } from "../lib/tts";
 import { uid } from "../lib/id";
 import { go } from "../lib/router";
@@ -326,8 +327,28 @@ function IconBtn({ label, children, ...p }: React.ButtonHTMLAttributes<HTMLButto
 
 function VideoField({ id, value, onChange, label }: { id: string; value: string; onChange: (v: string) => void; label: string }) {
   const parsed = parseVideo(value);
+  const [open, setOpen] = useState(false);
   return (
     <div className="space-y-2">
+      <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <Lightbulb className="size-4" /> הצעת סרטון
+      </Button>
+      {open && (
+        <div className="space-y-2 rounded-lg border border-line bg-surface p-3 text-sm">
+          <p className="text-ink-2">בחרו קטע באחד המאגרים, העתיקו את קישור ה־YouTube שלו והדביקו כאן.</p>
+          <ul className="space-y-2">
+            {VIDEO_SOURCES.map((s) => (
+              <li key={s.url}>
+                <a href={s.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-medium text-brand hover:underline">
+                  {s.name} <ExternalLink className="size-3.5" />
+                </a>
+                <span className={`ms-2 rounded px-1.5 py-0.5 text-[11px] ${s.official ? "bg-ok-soft text-ok" : "bg-subtle text-ink-3"}`}>{s.official ? "רשמי" : "אתר מורים – לא רשמי"}</span>
+                <p className="text-xs text-ink-3">{s.note}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <Field label={label} htmlFor={id} hint={value && !parsed ? "קישור לא נתמך. השתמשו בקישור YouTube, Vimeo, Google Drive (משותף לכל מי שיש לו קישור) או קובץ mp4." : "YouTube / Vimeo / Google Drive / mp4"}>
         <Input id={id} dir="ltr" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
       </Field>

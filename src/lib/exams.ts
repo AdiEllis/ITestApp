@@ -4,6 +4,7 @@ import { randomToken } from "./crypto";
 import { extensionFor } from "./files";
 import { storage } from "./storage";
 import { parseSettings, rubricCriteriaSchema, type ExamSnapshot } from "./exam-types";
+import { parseVideo } from "./video";
 
 export function newStorageKey(kind: string, mimeType: string) {
   const d = new Date();
@@ -52,6 +53,7 @@ export function buildSnapshot(exam: ExamWithContent): ExamSnapshot {
       choiceMode: s.choiceMode,
       mediaId: track(s.media),
       mediaMime: s.media?.mimeType ?? null,
+      videoUrl: s.videoUrl,
       maxMediaPlays: s.maxMediaPlays,
       questions: s.questions.map((q) => ({
         id: q.id,
@@ -62,6 +64,7 @@ export function buildSnapshot(exam: ExamWithContent): ExamSnapshot {
         audioId: track(q.audio),
         videoId: track(q.video),
         imageId: track(q.image),
+        videoUrl: q.videoUrl,
         maxMediaPlays: q.maxMediaPlays,
         prepTimeSec: q.prepTimeSec,
         maxRecordSec: q.maxRecordSec,
@@ -83,13 +86,15 @@ export function publishProblems(exam: ExamWithContent): string[] {
     if (s.questions.length === 0) problems.push(`ב${name} אין שאלות`);
     if (s.choiceMode === "CHOOSE_ONE" && s.questions.length < 2) problems.push(`ב${name} מוגדרת בחירה בין נושאים אך יש פחות משתי אפשרויות`);
     s.questions.forEach((q, j) => {
-      if (!q.prompt.trim() && !q.audioId && !q.videoId && q.subQuestions.length === 0)
+      if (q.videoUrl && !parseVideo(q.videoUrl)) problems.push(`קישור הסרטון בשאלה ${j + 1} ב${name} אינו נתמך`);
+      if (!q.prompt.trim() && !q.audioId && !q.videoId && !q.videoUrl && q.subQuestions.length === 0)
         problems.push(`שאלה ${j + 1} ב${name} ריקה — יש להוסיף טקסט או מדיה`);
       if (q.maxRecordSec < 10) problems.push(`זמן ההקלטה בשאלה ${j + 1} ב${name} קצר מדי`);
       if (q.points <= 0) problems.push(`לשאלה ${j + 1} ב${name} יש להגדיר ניקוד חיובי`);
     });
-    if (s.kind === "AUDIO_VISUAL" && !s.mediaId && !s.questions.some((q) => q.videoId || q.audioId))
-      problems.push(`ב${name} (Audio-Visual) יש להעלות סרטון או קטע שמע`);
+    if (s.videoUrl && !parseVideo(s.videoUrl)) problems.push(`קישור הסרטון ב${name} אינו נתמך (YouTube, Vimeo, Google Drive או קובץ mp4)`);
+    if (s.kind === "AUDIO_VISUAL" && !s.mediaId && !s.videoUrl && !s.questions.some((q) => q.videoId || q.audioId || q.videoUrl))
+      problems.push(`ב${name} (Audio-Visual) יש להעלות סרטון או קטע שמע, או להדביק קישור לסרטון`);
   });
   return problems;
 }
@@ -170,6 +175,7 @@ export async function copyExam(
             kind: s.kind,
             choiceMode: s.choiceMode,
             maxMediaPlays: s.maxMediaPlays,
+            videoUrl: s.videoUrl,
             mediaId: await cloneMedia(tx, s.media, ownerId, cache),
           },
         });
@@ -185,6 +191,7 @@ export async function copyExam(
               audioId: await cloneMedia(tx, q.audio, ownerId, cache),
               videoId: await cloneMedia(tx, q.video, ownerId, cache),
               imageId: await cloneMedia(tx, q.image, ownerId, cache),
+              videoUrl: q.videoUrl,
               maxMediaPlays: q.maxMediaPlays,
               prepTimeSec: q.prepTimeSec,
               maxRecordSec: q.maxRecordSec,

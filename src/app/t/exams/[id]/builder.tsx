@@ -42,6 +42,7 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field"
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { MediaField } from "@/components/media/media-field";
+import { VideoLinkField } from "@/components/media/video-link-field";
 import { MediaPlayer } from "@/components/media/media-player";
 import { ProgressBar } from "@/components/media/progress-bar";
 import { cn } from "@/components/ui/cn";
@@ -61,6 +62,7 @@ function newQuestion(simulation: boolean): BuilderQuestion {
     audioId: null,
     videoId: null,
     imageId: null,
+    videoUrl: null,
     maxMediaPlays: null,
     prepTimeSec: simulation ? 30 : 0,
     maxRecordSec: 120,
@@ -328,6 +330,7 @@ export function ExamBuilder({
                       kind: "GENERAL",
                       choiceMode: "ALL",
                       mediaId: null,
+                      videoUrl: null,
                       maxMediaPlays: null,
                       questions: [newQuestion(simulation)],
                     },
@@ -641,7 +644,7 @@ function SectionCard(props: {
             onChange={(e) => props.onChange({ instructions: e.target.value })}
           />
         </Field>
-        {(s.kind === "AUDIO_VISUAL" || s.mediaId) && (
+        {(s.kind === "AUDIO_VISUAL" || s.mediaId || s.videoUrl) && (
           <div className="grid gap-3 rounded-xl border border-line bg-subtle/40 p-4 sm:grid-cols-[1fr_160px]">
             <MediaField
               label="סרטון / קטע שמע משותף לחלק"
@@ -654,6 +657,9 @@ function SectionCard(props: {
                 props.onChange({ mediaId: id });
               }}
             />
+            <div className="sm:order-last sm:col-span-2">
+              <VideoLinkField id={`vurl-${s.key}`} value={s.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
+            </div>
             <Field label="מספר צפיות מרבי" htmlFor={`plays-${s.key}`} hint="ריק = ללא הגבלה">
               <Input
                 id={`plays-${s.key}`}
@@ -822,6 +828,9 @@ function QuestionCard(props: {
                 props.onChange({ imageId: id });
               }}
             />
+            <div className="lg:col-span-3">
+              <VideoLinkField id={`qvurl-${q.key}`} label="קישור לסרטון (במקום העלאה)" value={q.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

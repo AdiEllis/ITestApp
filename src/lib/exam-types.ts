@@ -45,6 +45,7 @@ export interface SnapshotQuestion {
   audioId: string | null;
   videoId: string | null;
   imageId: string | null;
+  videoUrl?: string | null;
   maxMediaPlays: number | null;
   prepTimeSec: number;
   maxRecordSec: number;
@@ -60,6 +61,7 @@ export interface SnapshotSection {
   choiceMode: "ALL" | "CHOOSE_ONE";
   mediaId: string | null;
   mediaMime: string | null;
+  videoUrl?: string | null;
   maxMediaPlays: number | null;
   questions: SnapshotQuestion[];
 }
