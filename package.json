@@ -16,7 +16,9 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "retention": "tsx scripts/retention.ts",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "vercel-build": "node scripts/vercel-build.mjs",
+    "storage:setup": "tsx scripts/setup-storage.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1153.0",
