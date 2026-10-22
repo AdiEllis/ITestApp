@@ -63,6 +63,37 @@ export function useRecorder() {
   const startRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopResolve = useRef<((r: RecordingResult | null) => void) | null>(null);
+  const autoStopRef = useRef<((r: RecordingResult | null) => void) | null>(null);
+
+  /**
+   * Drops a stream the system has taken away (iPhone does this when the student switches apps or
+   * locks the screen). Not an error: the next "start recording" tap simply opens the mic again.
+   */
+  const dropDeadStream = useCallback(() => {
+    if (recRef.current && recRef.current.state !== "inactive") {
+      // Mid-recording: stop and keep what was recorded (delivered through onstop).
+      try {
+        recRef.current.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    ctxRef.current?.close().catch(() => undefined);
+    ctxRef.current = null;
+    analyserRef.current = null;
+    setState((s) => (s === "error" ? s : "idle"));
+  }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && streamRef.current && !streamRef.current.active) dropDeadStream();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [dropDeadStream]);
 
   const meter = useCallback(() => {
     const a = analyserRef.current;
@@ -98,8 +129,7 @@ export function useRecorder() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       streamRef.current = stream;
       stream.getAudioTracks()[0]?.addEventListener("ended", () => {
-        setError("busy");
-        setState("error");
+        if (streamRef.current === stream) dropDeadStream();
       });
       try {
         const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -123,7 +153,7 @@ export function useRecorder() {
       setState("error");
       return false;
     }
-  }, [meter]);
+  }, [meter, dropDeadStream]);
 
   const stop = useCallback((): Promise<RecordingResult | null> => {
     const rec = recRef.current;
@@ -158,16 +188,22 @@ export function useRecorder() {
         const type = (rec.mimeType || mimeType || chunks[0]?.type || "audio/webm").split(";")[0];
         const blob = new Blob(chunks, { type });
         const result: RecordingResult = { blob, mimeType: type, durationSec: Math.round(durationSec * 10) / 10, peak: peakRef.current };
-        setState("ready");
-        stopResolve.current?.(result);
-        stopResolve.current = null;
+        setState((s) => (s === "recording" ? (streamRef.current?.active ? "ready" : "idle") : s));
         recRef.current = null;
+        if (stopResolve.current) {
+          stopResolve.current(result);
+          stopResolve.current = null;
+        } else {
+          // Stopped by the system (mic taken away): keep the recording.
+          autoStopRef.current?.(result);
+        }
       };
       rec.onerror = () => {
         setError("unknown");
         setState("error");
       };
       peakRef.current = 0;
+      autoStopRef.current = onAutoStop ?? null;
       recRef.current = rec;
       // timeslice keeps data flowing so a crash mid-recording loses at most ~1s
       rec.start(1000);

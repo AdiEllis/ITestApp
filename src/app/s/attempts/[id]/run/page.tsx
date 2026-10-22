@@ -15,7 +15,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const found = await getOwnAttempt(user, id).catch(() => null);
   if (!found) notFound();
   const attempt = await finalizeIfExpired(found);
-  if (attempt.status !== "IN_PROGRESS") redirect(`/s/attempts/${id}`);
+  if (attempt.status !== "IN_PROGRESS") redirect(found.status === "IN_PROGRESS" ? `/s/attempts/${id}?timeout=1` : `/s/attempts/${id}`);
 
   const answers = await db.answer.findMany({ where: { attemptId: id }, include: { recording: { select: { mimeType: true } } } });
   const initialAnswers: Record<string, SavedAnswer> = {};

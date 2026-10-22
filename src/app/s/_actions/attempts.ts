@@ -8,14 +8,16 @@ import { startOrResumeAttempt } from "@/lib/attempts";
 export async function startAttemptAction(assignmentId: string): Promise<{ error: string } | void> {
   const user = await requireUser(["STUDENT"]);
   let attemptId: string;
+  let timedOut = false;
   try {
     const assignment = await getStudentAssignment(user, assignmentId);
     const attempt = await startOrResumeAttempt(user.id, assignment);
-    if (attempt.status !== "IN_PROGRESS") return { error: "הזמן למבחן זה הסתיים והוא הוגש אוטומטית" };
     attemptId = attempt.id;
+    // Time ran out while the student was away: show what was saved instead of an error.
+    if (attempt.status !== "IN_PROGRESS") timedOut = true;
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
-  redirect(`/s/attempts/${attemptId}/run`);
+  redirect(timedOut ? `/s/attempts/${attemptId}?timeout=1` : `/s/attempts/${attemptId}/run`);
 }

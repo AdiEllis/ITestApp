@@ -8,6 +8,7 @@ import { getOwnAttempt } from "@/lib/authz";
 import { countedQuestions } from "@/lib/scoring";
 import { finalizeIfExpired, snapshotOf } from "@/lib/attempts";
 import { Card } from "@/components/ui/card";
+import { ScrollTop } from "@/components/scroll-top";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { En } from "@/components/ui/en";
@@ -16,7 +17,7 @@ import { formatDateTime, formatDuration, formatScore } from "@/lib/format";
 
 export const metadata = { title: "תוצאות" };
 
-export default async function AttemptResult({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ submitted?: string }> }) {
+export default async function AttemptResult({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ submitted?: string; timeout?: string }> }) {
   const user = await requireUser(["STUDENT"]);
   const { id } = await params;
   const found = await getOwnAttempt(user, id).catch(() => null);
@@ -28,13 +29,21 @@ export default async function AttemptResult({ params, searchParams }: { params: 
   const answers = await db.answer.findMany({ where: { attemptId: id }, include: { recording: { select: { id: true, mimeType: true } } } });
   const byQ = new Map(answers.map((a) => [a.questionId, a]));
   const counted = countedQuestions(snapshot, choices);
-  const justSubmitted = (await searchParams).submitted === "1";
+  const sp = await searchParams;
+  const justSubmitted = sp.submitted === "1";
+  const timedOut = sp.timeout === "1";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link href="/s" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
         <ArrowRight className="size-4" /> המשימות שלי
       </Link>
+      {(timedOut || justSubmitted) && <ScrollTop />}
+      {timedOut && (
+        <Alert tone="info" title="הזמן של המבחן נגמר, והוא הוגש אוטומטית">
+          בסימולציה השעון ממשיך לרוץ גם כשיוצאים מהמבחן, כמו בבחינה אמיתית. כל מה שהוקלט עד אז נשמר ונשלח למורה.
+        </Alert>
+      )}
       {justSubmitted && (
         <Alert tone="ok" title="המבחן הוגש בהצלחה">
           כל ההקלטות נשמרו. תקבלו משוב לאחר שהמורה תבדוק.

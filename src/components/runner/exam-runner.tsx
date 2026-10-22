@@ -470,6 +470,13 @@ function RecordPanel(props: {
   const needsPrep = q.prepTimeSec > 0 && !props.recorded && count === 0;
   const [prepLeft, setPrepLeft] = useState<number | null>(null);
   const prepDone = useRef(false);
+  // Auto-start only when the student watched the countdown run out on this screen. If it ran out
+  // while they were away (another app, locked phone), wait for their tap: iPhone refuses to open
+  // the mic without one, and a recording that starts by surprise is useless anyway.
+  const sawPrepRunning = useRef(false);
+  useEffect(() => {
+    if (prepLeft !== null && prepLeft > 0) sawPrepRunning.current = true;
+  }, [prepLeft]);
   useEffect(() => {
     if (!needsPrep) return;
     if (!props.prepStartedAt) props.onPrep();
@@ -502,7 +509,7 @@ function RecordPanel(props: {
 
   // In simulation mode recording starts automatically when preparation time ends.
   useEffect(() => {
-    if (props.simulation && needsPrep && prepLeft === 0 && !prepDone.current && recorder.state !== "recording") {
+    if (props.simulation && needsPrep && prepLeft === 0 && sawPrepRunning.current && !prepDone.current && recorder.state !== "recording") {
       prepDone.current = true;
       void start();
     }
