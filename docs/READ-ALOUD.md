@@ -22,14 +22,14 @@
 1. נכנסים ל־**portal.azure.com** ופותחים חשבון חינמי (מבקשים כרטיס אשראי לאימות, אבל במסלול החינמי F0 לא מחייבים).
 2. למעלה בחיפוש כותבים **Speech** ובוחרים **Speech services** ← **Create**.
 3. ממלאים:
-   - **Region**: ‏West Europe.
+   - **Region**: ‏North Europe (אם לא זמין: Sweden Central או East US. West Europe לא מקבל כרגע לקוחות חדשים).
    - **Name**: למשל `oralprep-voice`.
    - **Pricing tier**: ‏**Free F0**.
    - לוחצים **Review + create** ← **Create**, ומחכים דקה.
-4. נכנסים למשאב שנוצר ← **Keys and Endpoint**. מעתיקים את **KEY 1** ואת **Location/Region** (למשל `westeurope`).
+4. נכנסים למשאב שנוצר ← **Keys and Endpoint**. מעתיקים את **KEY 1** ואת **Location/Region** (למשל `northeurope`).
 5. ב־**Vercel** ← הפרויקט ← **Settings** ← **Environment Variables**, מוסיפים:
    - `AZURE_SPEECH_KEY` = המפתח שהעתקתם.
-   - `AZURE_SPEECH_REGION` = האזור (למשל `westeurope`).
+   - `AZURE_SPEECH_REGION` = האזור (למשל `northeurope`).
    - לא חובה: `AZURE_TTS_VOICE` = ‏`he-IL-AvriNeural` לקול גברי.
    - בכל משתנה מסמנים גם **Production** וגם **Preview**, כדי שזה יעבוד גם בגרסת הניסיון.
 6. ב־Vercel ← **Deployments** ← בפריסה האחרונה ⋯ ← **Redeploy**.
