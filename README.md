@@ -94,6 +94,7 @@ npm run build && npm run test:e2e # Playwright: 14 בדיקות E2E (DB נפרד
 ## מסמכים
 
 - [docs/RESEARCH.md](docs/RESEARCH.md): ממצאי המחקר על COBE והחלטות הפיתוח.
+- [docs/GOOGLE-SETUP.md](docs/GOOGLE-SETUP.md): הפעלת "התחברות עם Google".
 - [docs/FREE-SETUP.md](docs/FREE-SETUP.md): **הפעלה בחינם צעד אחר צעד** (Vercel + Neon + Backblaze B2).
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): פריסה כללית (Docker או שרת).
 - [docs/SECURITY-PRIVACY.md](docs/SECURITY-PRIVACY.md): אבטחה, פרטיות ורשימת בדיקות לפני שימוש בבית ספר.

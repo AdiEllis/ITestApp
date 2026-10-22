@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { CreateClassForm } from "./create-class-form";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "כיתות" };
 
@@ -20,7 +21,7 @@ export default async function ClassesPage({ searchParams }: { searchParams: Prom
   });
   return (
     <>
-      <PageHeader title="כיתות ותלמידים" description="צרו כיתה, הוסיפו תלמידים או שתפו קוד הצטרפות." />
+      <PageHeader title="כיתות ותלמידים" description="צרו כיתה ושלחו לתלמידים את קישור ההצטרפות." actions={<HelpButton topic="classes" />} />
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
           <div className="flex items-center justify-between border-b border-line px-5 py-3">

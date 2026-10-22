@@ -15,6 +15,7 @@ import { AddStudents } from "./add-students";
 import { ClassSettings } from "./class-settings";
 import { CopyButton } from "@/components/copy-button";
 import { formatDate } from "@/lib/format";
+import { HelpButton } from "@/components/help/help-button";
 
 export default async function ClassPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser(["TEACHER"]);
@@ -58,6 +59,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
         description={`${classroom.gradeLevel ? classroom.gradeLevel + " · " : ""}${students.length} תלמידים · ${assignments} משימות`}
         actions={
           <>
+            <HelpButton topic="class" />
             <LinkButton href={`/t/assignments/new?classroomId=${id}`} variant="primary" size="sm">
               <ListChecks className="size-4" /> הקצאת מבחן
             </LinkButton>
@@ -78,11 +80,14 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
+          <div className={students.length === 0 ? "order-first" : "order-last"}>
+            <AddStudents classroomId={id} className={classroom.name} google={env.googleEnabled} joinUrl={joinUrl} />
+          </div>
           <Card>
-            <CardHeader title="תלמידים" description="התקדמות, איפוס סיסמה והסרה מהכיתה" />
+            <CardHeader title="תלמידים" description="לחיצה על שם — התקדמות התלמיד/ה לאורך השנה" />
             {students.length === 0 ? (
-              <EmptyState icon={Users} title="אין עדיין תלמידים בכיתה" body="הוסיפו תלמידים לפי שם, או שתפו את קוד ההצטרפות." />
+              <EmptyState icon={Users} title="אין עדיין תלמידים בכיתה" body={env.googleEnabled ? "שלחו לתלמידים את קישור ההצטרפות (למטה). כל מי שמצטרף יופיע כאן." : "הוסיפו תלמידים לפי שם, או שתפו את קוד ההצטרפות."} />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -139,13 +144,12 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
           </Card>
-          <AddStudents classroomId={id} className={classroom.name} google={env.googleEnabled} joinUrl={joinUrl} />
         </div>
 
         <div className="space-y-6">
           <Card className="p-5">
             <h2 className="text-[15px] font-semibold">קוד הצטרפות</h2>
-            <p className="mt-1 text-sm text-ink-3">תלמידים נכנסים לכתובת ההצטרפות ובוחרים שם משתמש וסיסמה.</p>
+            <p className="mt-1 text-sm text-ink-3">{env.googleEnabled ? "אפשר גם להקליד את הקוד בדף \"הצטרפות לכיתה\" באתר." : "תלמידים נכנסים לכתובת ההצטרפות ובוחרים שם משתמש וסיסמה."}</p>
             <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-subtle px-4 py-3">
               <span dir="ltr" className="font-mono text-2xl font-semibold tracking-[0.25em]">
                 {classroom.joinCode}

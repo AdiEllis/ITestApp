@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ScoreTrend } from "@/components/score-trend";
 import { formatDate, formatDateTime, formatScore } from "@/lib/format";
 import { snapshotOf } from "@/lib/attempts";
+import { GettingStarted, type StartStep } from "@/components/help/getting-started";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "לוח בקרה" };
 
@@ -60,6 +62,20 @@ export default async function TeacherDashboard() {
     }),
     db.classroom.count({ where: { teacherId: user.id } }),
   ]);
+  const [enrolled, publishedExams, gradedCount, firstClass] = await Promise.all([
+    db.enrollment.count({ where: { classroom: { teacherId: user.id } } }),
+    db.exam.count({ where: { ownerId: user.id, isLibraryEntry: false, status: "PUBLISHED" } }),
+    db.attempt.count({ where: { assignment: mine, gradingStatus: "PUBLISHED" } }),
+    db.classroom.findFirst({ where: { teacherId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true } }),
+  ]);
+  const steps: StartStep[] = [
+    { title: "יצירת כיתה", body: "נותנים שם לכיתה — למשל י״א 3.", href: "/t/classes", cta: "יצירת כיתה", done: classes > 0 },
+    { title: "צירוף תלמידים", body: "שולחים לקבוצת הכיתה קישור הצטרפות. כל תלמיד נכנס עם Google.", href: firstClass ? `/t/classes/${firstClass.id}` : "/t/classes", cta: "לקישור ההצטרפות", done: enrolled > 0 },
+    { title: "יצירת מבחן ופרסום", body: "מתחילים מתבנית COBE מוכנה ומשנים מה שרוצים.", href: "/t/exams/new", cta: "מבחן חדש", done: publishedExams > 0 },
+    { title: "שליחת המבחן לכיתה", body: "בוחרים מבחן, כיתה ותאריך הגשה.", href: "/t/assignments/new", cta: "הקצאה לכיתה", done: assignments > 0 },
+    { title: "בדיקת הגשה ראשונה", body: "מאזינים, בוחרים רמה בכל קריטריון ומפרסמים משוב.", href: "/t/review", cta: "לבדיקת הגשות", done: gradedCount > 0 },
+  ];
+  const setupDone = steps.every((x) => x.done);
 
   // Average published score per assignment, in chronological order.
   const byAssignment = new Map<string, { title: string; date: Date; sum: number; n: number }>();
@@ -79,30 +95,6 @@ export default async function TeacherDashboard() {
     })
     .filter((x) => x.missing > 0);
 
-  if (classes === 0) {
-    return (
-      <>
-        <PageHeader title={`שלום, ${user.name.split(" ")[0]}`} description="כמה צעדים כדי להתחיל:" />
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            { n: 1, t: "יצירת כיתה", d: "והוספת תלמידים או שיתוף קוד הצטרפות.", href: "/t/classes", cta: "לכיתות" },
-            { n: 2, t: "יצירת מבחן", d: "מתבנית COBE, ממבחן ריק, מקבצים מוכנים או מהמאגר המשותף.", href: "/t/exams/new", cta: "מבחן חדש" },
-            { n: 3, t: "הקצאה ובדיקה", d: "קובעים מועד הגשה, ומאזינים להקלטות כשהתלמידים מגישים.", href: "/t/assignments/new", cta: "הקצאה" },
-          ].map((s) => (
-            <Card key={s.n} className="flex flex-col p-5">
-              <span className="grid size-7 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand-strong">{s.n}</span>
-              <h2 className="mt-3 font-semibold">{s.t}</h2>
-              <p className="mt-1 flex-1 text-sm text-ink-2">{s.d}</p>
-              <LinkButton href={s.href} variant={s.n === 1 ? "primary" : "secondary"} size="sm" className="mt-4 self-start">
-                {s.cta}
-              </LinkButton>
-            </Card>
-          ))}
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -110,6 +102,7 @@ export default async function TeacherDashboard() {
         description={pending ? `${pending} הגשות ממתינות לבדיקה.` : "אין הגשות שממתינות לבדיקה."}
         actions={
           <>
+            <HelpButton topic="dashboard" />
             <LinkButton href="/t/exams/new" variant="secondary" size="sm">
               <Plus className="size-4" /> מבחן חדש
             </LinkButton>
@@ -119,6 +112,13 @@ export default async function TeacherDashboard() {
           </>
         }
       />
+      {!setupDone && (
+        <div className="mb-6">
+          <GettingStarted steps={steps} />
+        </div>
+      )}
+      {assignments > 0 && (
+        <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="תלמידים" value={students} icon={Users} href="/t/classes" />
         <Stat label="מבחנים שהוקצו" value={assignments} icon={BookOpen} href="/t/assignments" />
@@ -202,6 +202,8 @@ export default async function TeacherDashboard() {
           )}
         </div>
       </Card>
+        </>
+      )}
     </>
   );
 }

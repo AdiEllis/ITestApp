@@ -17,6 +17,7 @@ import {
   Loader2,
   Plus,
   Send,
+  Settings2,
   Share2,
   Trash2,
   Upload,
@@ -43,6 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { MediaField } from "@/components/media/media-field";
 import { VideoLinkField } from "@/components/media/video-link-field";
+import { HelpButton } from "@/components/help/help-button";
 import { MediaPlayer } from "@/components/media/media-player";
 import { ProgressBar } from "@/components/media/progress-bar";
 import { cn } from "@/components/ui/cn";
@@ -229,6 +231,7 @@ export function ExamBuilder({
           </div>
           <SaveIndicator state={readOnly ? "saved" : saveState} onRetry={save} />
           <div className="flex flex-wrap items-center gap-2">
+            <HelpButton topic="builder" />
             <LinkButton href={`/preview/${examId}`} target="_blank" variant="secondary" size="sm" onClick={() => void save()}>
               <Eye className="size-4" /> תצוגת תלמיד
             </LinkButton>
@@ -246,6 +249,25 @@ export function ExamBuilder({
         </div>
       </div>
 
+      {!locked && status !== "ARCHIVED" && (
+        <ol className="mb-5 grid grid-cols-3 gap-2 text-sm" aria-label="שלבים">
+          {[
+            ["כותבים את השאלות", true],
+            ["לוחצים \"פרסום\"", status === "PUBLISHED"],
+            ["שולחים לכיתה", false],
+          ].map(([label, done], i) => {
+            const current = (i === 1 && status === "DRAFT") || (i === 2 && status === "PUBLISHED");
+            return (
+              <li key={i} className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", current ? "border-brand bg-brand-soft/60 font-medium" : "border-line bg-surface text-ink-2")}>
+                <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold", done && !current ? "bg-ok text-white" : current ? "bg-brand text-white" : "bg-subtle text-ink-3")}>
+                  {done && !current ? <Check className="size-3.5" /> : i + 1}
+                </span>
+                <span className="truncate">{label as string}</span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
       {justCopied && (
         <Alert tone="ok" className="mb-4" title="המבחן הועתק לספרייה שלך">
           זהו עותק פרטי — שינויים כאן לא ישפיעו על המבחן במאגר המשותף.
@@ -348,89 +370,104 @@ export function ExamBuilder({
         <div className="space-y-6">
           <Card className="p-5">
             <fieldset disabled={readOnly} className="space-y-4">
-              <h2 className="text-[15px] font-semibold">הגדרות מבחן</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="רמה" htmlFor="level">
-                  <Select id="level" value={exam.level} onChange={(e) => update((x) => ({ ...x, level: e.target.value as BuilderExam["level"] }))}>
-                    {Object.entries(LEVEL_LABELS).map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="מצב" htmlFor="mode">
-                  <Select
-                    id="mode"
-                    value={exam.mode}
-                    onChange={(e) => {
-                      const mode = e.target.value as BuilderExam["mode"];
+              <h2 className="text-[15px] font-semibold">איך התלמידים יענו?</h2>
+              <div className="grid gap-2">
+                {(
+                  [
+                    ["PRACTICE", "תרגול רגיל", "בלי לחץ זמן, אפשר לחזור לשאלות"],
+                    ["SIMULATION", "כמו בבחינה", "זמני הכנה, הקלטה אוטומטית וזמן כולל"],
+                  ] as const
+                ).map(([v, title, body]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={exam.mode === v}
+                    onClick={() =>
                       update((x) => ({
                         ...x,
-                        mode,
+                        mode: v,
                         settings:
-                          mode === "SIMULATION"
+                          v === "SIMULATION"
                             ? { ...x.settings, totalTimeLimitSec: x.settings.totalTimeLimitSec ?? COBE_DEFAULTS.totalTimeLimitSec, allowBackNavigation: false }
                             : { ...x.settings, totalTimeLimitSec: null, allowBackNavigation: true },
-                      }));
-                    }}
+                      }))
+                    }
+                    className={cn("rounded-xl border p-3 text-start", exam.mode === v ? "border-brand bg-brand-soft/50" : "border-line hover:border-line-strong")}
                   >
-                    <option value="PRACTICE">תרגול</option>
-                    <option value="SIMULATION">סימולציה</option>
-                  </Select>
+                    <span className="block font-medium">{title}</span>
+                    <span className="block text-sm text-ink-2">{body}</span>
+                  </button>
+                ))}
+              </div>
+              {exam.mode === "SIMULATION" && (
+                <Field label="זמן כולל למבחן (דקות)" htmlFor="limit" hint="כשהזמן נגמר — מה שהוקלט מוגש אוטומטית. ריק = ללא מגבלה.">
+                  <Input
+                    id="limit"
+                    type="number"
+                    min={1}
+                    max={240}
+                    inputMode="numeric"
+                    value={exam.settings.totalTimeLimitSec ? Math.round(exam.settings.totalTimeLimitSec / 60) : ""}
+                    onChange={(e) => {
+                      const m = numOrNull(e.target.value);
+                      update((x) => ({ ...x, settings: { ...x.settings, totalTimeLimitSec: m ? Math.min(240, Math.max(1, m)) * 60 : null } }));
+                    }}
+                  />
                 </Field>
-              </div>
-              <Field label="מגבלת זמן כוללת (דקות)" htmlFor="limit" hint="ריק = ללא מגבלה. כשהזמן נגמר — ההקלטות שנשמרו מוגשות אוטומטית.">
-                <Input
-                  id="limit"
-                  type="number"
-                  min={1}
-                  max={240}
-                  inputMode="numeric"
-                  value={exam.settings.totalTimeLimitSec ? Math.round(exam.settings.totalTimeLimitSec / 60) : ""}
-                  onChange={(e) => {
-                    const m = numOrNull(e.target.value);
-                    update((x) => ({ ...x, settings: { ...x.settings, totalTimeLimitSec: m ? Math.min(240, Math.max(1, m)) * 60 : null } }));
-                  }}
-                />
-              </Field>
-              <Checkbox
-                checked={exam.settings.allowBackNavigation}
-                onChange={(e) => update((x) => ({ ...x, settings: { ...x.settings, allowBackNavigation: e.target.checked } }))}
-                label="מותר לחזור לשאלות קודמות"
-              />
-              <Checkbox
-                checked={exam.settings.allowReviewOwnRecording}
-                onChange={(e) => update((x) => ({ ...x, settings: { ...x.settings, allowReviewOwnRecording: e.target.checked } }))}
-                label="התלמיד/ה יכול/ה להאזין להקלטה לפני ההגשה"
-              />
-              <Field
-                label="מחוון הערכה"
-                htmlFor="rubric"
-                hint={
-                  <Link href="/t/rubrics" className="text-brand hover:underline">
-                    ניהול מחוונים
-                  </Link>
-                }
-              >
-                <Select id="rubric" value={exam.rubricId ?? ""} onChange={(e) => update((x) => ({ ...x, rubricId: e.target.value || null }))}>
-                  <option value="">ללא מחוון (ציון ישיר לכל שאלה)</option>
-                  {rubrics.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                      {r.system ? " (ברירת מחדל)" : ""}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <TopicsInput topics={exam.topics} onChange={(topics) => update((x) => ({ ...x, topics }))} />
-              <div className="rounded-lg bg-subtle px-3 py-2 text-sm text-ink-2">
-                סה״כ ניקוד: <span className="font-semibold tabular text-ink">{totalPoints}</span> נק׳ · הציון הסופי מנורמל ל־100
-              </div>
+              )}
+              <details className="rounded-xl border border-line">
+                <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-medium text-ink-2 hover:text-ink">
+                  <Settings2 className="size-4" /> הגדרות מתקדמות
+                </summary>
+                <div className="space-y-4 border-t border-line p-3">
+                  <Field label="רמה" htmlFor="level">
+                    <Select id="level" value={exam.level} onChange={(e) => update((x) => ({ ...x, level: e.target.value as BuilderExam["level"] }))}>
+                      {Object.entries(LEVEL_LABELS).map(([v, l]) => (
+                        <option key={v} value={v}>
+                          {l}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Checkbox
+                    checked={exam.settings.allowBackNavigation}
+                    onChange={(e) => update((x) => ({ ...x, settings: { ...x.settings, allowBackNavigation: e.target.checked } }))}
+                    label="מותר לחזור לשאלות קודמות"
+                  />
+                  <Checkbox
+                    checked={exam.settings.allowReviewOwnRecording}
+                    onChange={(e) => update((x) => ({ ...x, settings: { ...x.settings, allowReviewOwnRecording: e.target.checked } }))}
+                    label="התלמיד/ה יכול/ה להאזין להקלטה לפני ההגשה"
+                  />
+                  <Field
+                    label="מחוון הערכה"
+                    htmlFor="rubric"
+                    hint={
+                      <Link href="/t/rubrics" className="text-brand hover:underline">
+                        עריכת מחוונים
+                      </Link>
+                    }
+                  >
+                    <Select id="rubric" value={exam.rubricId ?? ""} onChange={(e) => update((x) => ({ ...x, rubricId: e.target.value || null }))}>
+                      <option value="">ללא מחוון (ציון ישיר לכל שאלה)</option>
+                      {rubrics.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                          {r.system ? " (ברירת מחדל)" : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <TopicsInput topics={exam.topics} onChange={(topics) => update((x) => ({ ...x, topics }))} />
+                  <p className="text-sm text-ink-3">
+                    סה״כ ניקוד: <span className="font-semibold tabular text-ink">{totalPoints}</span> · הציון הסופי מנורמל ל־100
+                  </p>
+                </div>
+              </details>
             </fieldset>
           </Card>
 
-          <SourceFilesPanel examId={examId} files={initialSources} readOnly={readOnly} onChanged={() => router.refresh()} />
+          {initialSources.length > 0 && <SourceFilesPanel examId={examId} files={initialSources} readOnly={readOnly} onChanged={() => router.refresh()} />}
 
           <Card className="space-y-3 p-5">
             <h2 className="text-[15px] font-semibold">פעולות</h2>
@@ -613,41 +650,15 @@ function SectionCard(props: {
         </div>
       </div>
       <div className="space-y-4 p-5">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="סוג החלק" htmlFor={`kind-${s.key}`}>
-            <Select id={`kind-${s.key}`} value={s.kind} onChange={(e) => props.onChange({ kind: e.target.value as BuilderSection["kind"] })}>
-              {Object.entries(SECTION_KIND_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="מענה" htmlFor={`choice-${s.key}`} hint={s.choiceMode === "CHOOSE_ONE" ? "התלמיד/ה בוחר/ת שאלה אחת מתוך החלק" : undefined}>
-            <Select
-              id={`choice-${s.key}`}
-              value={s.choiceMode}
-              onChange={(e) => props.onChange({ choiceMode: e.target.value as BuilderSection["choiceMode"] })}
-            >
-              <option value="ALL">עונים על כל השאלות</option>
-              <option value="CHOOSE_ONE">בחירת נושא אחד</option>
-            </Select>
-          </Field>
-        </div>
-        <Field label="הוראות לחלק (באנגלית)" htmlFor={`instr-${s.key}`}>
-          <Textarea
-            id={`instr-${s.key}`}
-            lang="en"
-            dir="ltr"
-            rows={2}
-            value={s.instructions ?? ""}
-            onChange={(e) => props.onChange({ instructions: e.target.value })}
-          />
+        <Field label="הוראות לתלמידים (באנגלית)" htmlFor={`instr-${s.key}`}>
+          <Textarea id={`instr-${s.key}`} lang="en" dir="ltr" rows={2} value={s.instructions ?? ""} onChange={(e) => props.onChange({ instructions: e.target.value })} />
         </Field>
+        {s.choiceMode === "CHOOSE_ONE" && <p className="rounded-lg bg-brand-soft/60 px-3 py-2 text-sm text-ink-2">בחלק הזה התלמיד/ה בוחר/ת נושא אחד מתוך האפשרויות ועונה רק עליו.</p>}
         {(s.kind === "AUDIO_VISUAL" || s.mediaId || s.videoUrl) && (
-          <div className="grid gap-3 rounded-xl border border-line bg-subtle/40 p-4 sm:grid-cols-[1fr_160px]">
+          <div className="space-y-4 rounded-xl border border-line bg-subtle/40 p-4">
+            <VideoLinkField id={`vurl-${s.key}`} label="הסרטון של החלק (קישור מיוטיוב)" value={s.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
             <MediaField
-              label="סרטון / קטע שמע משותף לחלק"
+              label="או: העלאת קובץ וידאו / שמע מהמחשב"
               accept="audio-video"
               value={s.mediaId}
               media={props.media}
@@ -657,21 +668,33 @@ function SectionCard(props: {
                 props.onChange({ mediaId: id });
               }}
             />
-            <div className="sm:order-last sm:col-span-2">
-              <VideoLinkField id={`vurl-${s.key}`} value={s.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
-            </div>
-            <Field label="מספר צפיות מרבי" htmlFor={`plays-${s.key}`} hint="ריק = ללא הגבלה">
-              <Input
-                id={`plays-${s.key}`}
-                type="number"
-                min={1}
-                max={20}
-                value={s.maxMediaPlays ?? ""}
-                onChange={(e) => props.onChange({ maxMediaPlays: numOrNull(e.target.value) || null })}
-              />
-            </Field>
           </div>
         )}
+        <details className="rounded-xl border border-line">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-ink-2 hover:text-ink">
+            <Settings2 className="size-4" /> הגדרות לחלק
+          </summary>
+          <div className="grid gap-3 border-t border-line p-4 sm:grid-cols-3">
+            <Field label="סוג החלק" htmlFor={`kind-${s.key}`}>
+              <Select id={`kind-${s.key}`} value={s.kind} onChange={(e) => props.onChange({ kind: e.target.value as BuilderSection["kind"] })}>
+                {Object.entries(SECTION_KIND_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="איך עונים" htmlFor={`choice-${s.key}`}>
+              <Select id={`choice-${s.key}`} value={s.choiceMode} onChange={(e) => props.onChange({ choiceMode: e.target.value as BuilderSection["choiceMode"] })}>
+                <option value="ALL">עונים על כל השאלות</option>
+                <option value="CHOOSE_ONE">בוחרים נושא אחד</option>
+              </Select>
+            </Field>
+            <Field label="מספר צפיות בסרטון" htmlFor={`plays-${s.key}`} hint="ריק = ללא הגבלה (רק לקובץ שהועלה)">
+              <Input id={`plays-${s.key}`} type="number" min={1} max={20} value={s.maxMediaPlays ?? ""} onChange={(e) => props.onChange({ maxMediaPlays: numOrNull(e.target.value) || null })} />
+            </Field>
+          </div>
+        </details>
 
         <div className="space-y-3">
           {s.questions.map((q, qi) => (
@@ -757,45 +780,24 @@ function QuestionCard(props: {
         </IconBtn>
       </div>
       {open && (
-        <div className="space-y-4 border-t border-line p-4">
-          <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
-            <Field label="כותרת" htmlFor={`qt-${q.key}`}>
-              <Input
-                id={`qt-${q.key}`}
-                lang="en"
-                dir="ltr"
-                value={q.title ?? ""}
-                placeholder={label}
-                onChange={(e) => props.onChange({ title: e.target.value })}
-              />
-            </Field>
-            <Field label="השאלה / הפתיח (באנגלית)" htmlFor={`qp-${q.key}`}>
-              <Textarea
-                id={`qp-${q.key}`}
-                lang="en"
-                dir="ltr"
-                rows={2}
-                value={q.prompt}
-                onChange={(e) => props.onChange({ prompt: e.target.value })}
-                placeholder="Let's talk about…"
-              />
-            </Field>
-          </div>
-          <SubQuestions items={q.subQuestions} onChange={(subQuestions) => props.onChange({ subQuestions })} />
-          <Field label="הנחיה נוספת (לא חובה)" htmlFor={`qi-${q.key}`}>
-            <Input
-              id={`qi-${q.key}`}
+        <div className="space-y-5 border-t border-line p-4">
+          <Field label="השאלה (באנגלית)" htmlFor={`qp-${q.key}`}>
+            <Textarea
+              id={`qp-${q.key}`}
               lang="en"
               dir="ltr"
-              value={q.instructions ?? ""}
-              onChange={(e) => props.onChange({ instructions: e.target.value })}
-              placeholder="Answer all the questions in one recording."
+              rows={2}
+              value={q.prompt}
+              onChange={(e) => props.onChange({ prompt: e.target.value })}
+              placeholder="Let's talk about…"
             />
           </Field>
+          <SubQuestions items={q.subQuestions} onChange={(subQuestions) => props.onChange({ subQuestions })} />
 
-          <div className="grid gap-4 rounded-xl bg-subtle/50 p-4 lg:grid-cols-3">
+          <div className="grid gap-4 rounded-xl bg-subtle/50 p-4 lg:grid-cols-2">
+            <VideoLinkField id={`qvurl-${q.key}`} label="סרטון לשאלה (קישור, לא חובה)" value={q.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
             <MediaField
-              label="שמע לשאלה"
+              label="השמעת השאלה בקול (לא חובה)"
               accept="audio"
               allowRecord
               value={q.audioId}
@@ -806,90 +808,72 @@ function QuestionCard(props: {
                 props.onChange({ audioId: id });
               }}
             />
-            <MediaField
-              label="סרטון"
-              accept="video"
-              value={q.videoId}
-              media={props.media}
-              sourceFiles={props.sourceFiles}
-              onChange={(id, meta) => {
-                props.onMedia(id, meta);
-                props.onChange({ videoId: id });
-              }}
-            />
-            <MediaField
-              label="תמונה"
-              accept="image"
-              value={q.imageId}
-              media={props.media}
-              sourceFiles={props.sourceFiles}
-              onChange={(id, meta) => {
-                props.onMedia(id, meta);
-                props.onChange({ imageId: id });
-              }}
-            />
-            <div className="lg:col-span-3">
-              <VideoLinkField id={`qvurl-${q.key}`} label="קישור לסרטון (במקום העלאה)" value={q.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
-            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Field label="זמן הכנה (שנ׳)" htmlFor={`prep-${q.key}`} hint="0 = ללא">
-              <Input
-                id={`prep-${q.key}`}
-                type="number"
-                min={0}
-                max={600}
-                value={q.prepTimeSec}
-                onChange={(e) => props.onChange({ prepTimeSec: Math.min(600, numOrNull(e.target.value) ?? 0) })}
-              />
-            </Field>
-            <Field label="זמן הקלטה מרבי (שנ׳)" htmlFor={`rec-${q.key}`}>
-              <Input
-                id={`rec-${q.key}`}
-                type="number"
-                min={10}
-                max={900}
-                value={q.maxRecordSec}
-                onChange={(e) => props.onChange({ maxRecordSec: Math.min(900, Math.max(10, numOrNull(e.target.value) ?? 10)) })}
-              />
-            </Field>
-            <Field label="ניקוד" htmlFor={`pts-${q.key}`}>
-              <Input
-                id={`pts-${q.key}`}
-                type="number"
-                min={1}
-                max={100}
-                value={q.points}
-                onChange={(e) => props.onChange({ points: Math.min(100, Math.max(1, numOrNull(e.target.value) ?? 1)) })}
-              />
-            </Field>
-            <Field label="השמעות מרביות" htmlFor={`mp-${q.key}`} hint="ריק = ללא הגבלה">
-              <Input
-                id={`mp-${q.key}`}
-                type="number"
-                min={1}
-                max={20}
-                value={q.maxMediaPlays ?? ""}
-                onChange={(e) => props.onChange({ maxMediaPlays: numOrNull(e.target.value) || null })}
-              />
-            </Field>
-          </div>
-          <div className="flex flex-wrap items-end gap-6">
-            <Checkbox checked={q.allowReRecord} onChange={(e) => props.onChange({ allowReRecord: e.target.checked })} label="מותר להקליט מחדש" />
-            {q.allowReRecord && (
-              <Field label="מספר הקלטות מרבי" htmlFor={`mr-${q.key}`} hint="ריק = ללא הגבלה" className="w-44">
-                <Input
-                  id={`mr-${q.key}`}
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={q.maxRecordings ?? ""}
-                  onChange={(e) => props.onChange({ maxRecordings: numOrNull(e.target.value) || null })}
+          <details className="group rounded-xl border border-line">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-ink-2 hover:text-ink">
+              <Settings2 className="size-4" /> הגדרות לשאלה
+              <span className="font-normal text-ink-3">
+                · {q.prepTimeSec ? `הכנה ${q.prepTimeSec} שנ׳ · ` : ""}הקלטה עד {q.maxRecordSec} שנ׳ · {q.points} נק׳
+              </span>
+            </summary>
+            <div className="space-y-4 border-t border-line p-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Field label="זמן הכנה (שנ׳)" htmlFor={`prep-${q.key}`} hint="0 = ללא">
+                  <Input id={`prep-${q.key}`} type="number" min={0} max={600} value={q.prepTimeSec} onChange={(e) => props.onChange({ prepTimeSec: Math.min(600, numOrNull(e.target.value) ?? 0) })} />
+                </Field>
+                <Field label="זמן הקלטה (שנ׳)" htmlFor={`rec-${q.key}`}>
+                  <Input id={`rec-${q.key}`} type="number" min={10} max={900} value={q.maxRecordSec} onChange={(e) => props.onChange({ maxRecordSec: Math.min(900, Math.max(10, numOrNull(e.target.value) ?? 10)) })} />
+                </Field>
+                <Field label="ניקוד" htmlFor={`pts-${q.key}`}>
+                  <Input id={`pts-${q.key}`} type="number" min={1} max={100} value={q.points} onChange={(e) => props.onChange({ points: Math.min(100, Math.max(1, numOrNull(e.target.value) ?? 1)) })} />
+                </Field>
+                <Field label="השמעות מרביות" htmlFor={`mp-${q.key}`} hint="ריק = ללא הגבלה">
+                  <Input id={`mp-${q.key}`} type="number" min={1} max={20} value={q.maxMediaPlays ?? ""} onChange={(e) => props.onChange({ maxMediaPlays: numOrNull(e.target.value) || null })} />
+                </Field>
+              </div>
+              <div className="flex flex-wrap items-end gap-6">
+                <Checkbox checked={q.allowReRecord} onChange={(e) => props.onChange({ allowReRecord: e.target.checked })} label="מותר להקליט מחדש" />
+                {q.allowReRecord && (
+                  <Field label="מספר הקלטות מרבי" htmlFor={`mr-${q.key}`} hint="ריק = ללא הגבלה" className="w-44">
+                    <Input id={`mr-${q.key}`} type="number" min={1} max={20} value={q.maxRecordings ?? ""} onChange={(e) => props.onChange({ maxRecordings: numOrNull(e.target.value) || null })} />
+                  </Field>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
+                <Field label="כותרת (לא חובה)" htmlFor={`qt-${q.key}`}>
+                  <Input id={`qt-${q.key}`} lang="en" dir="ltr" value={q.title ?? ""} placeholder={label} onChange={(e) => props.onChange({ title: e.target.value })} />
+                </Field>
+                <Field label="הנחיה נוספת (לא חובה)" htmlFor={`qi-${q.key}`}>
+                  <Input id={`qi-${q.key}`} lang="en" dir="ltr" value={q.instructions ?? ""} onChange={(e) => props.onChange({ instructions: e.target.value })} placeholder="Answer all the questions in one recording." />
+                </Field>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <MediaField
+                  label="העלאת קובץ וידאו"
+                  accept="video"
+                  value={q.videoId}
+                  media={props.media}
+                  sourceFiles={props.sourceFiles}
+                  onChange={(id, meta) => {
+                    props.onMedia(id, meta);
+                    props.onChange({ videoId: id });
+                  }}
                 />
-              </Field>
-            )}
-          </div>
+                <MediaField
+                  label="תמונה"
+                  accept="image"
+                  value={q.imageId}
+                  media={props.media}
+                  sourceFiles={props.sourceFiles}
+                  onChange={(id, meta) => {
+                    props.onMedia(id, meta);
+                    props.onChange({ imageId: id });
+                  }}
+                />
+              </div>
+            </div>
+          </details>
         </div>
       )}
     </div>
@@ -899,7 +883,7 @@ function QuestionCard(props: {
 function SubQuestions({ items, onChange }: { items: string[]; onChange: (v: string[]) => void }) {
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">שאלות בסט (נענות בהקלטה אחת)</p>
+      <p className="text-sm font-medium">שאלות המשך <span className="font-normal text-ink-3">(התלמיד עונה על כולן בהקלטה אחת)</span></p>
       {items.map((t, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-5 shrink-0 text-center text-xs text-ink-3 tabular">{i + 1}</span>

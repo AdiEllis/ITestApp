@@ -53,7 +53,15 @@ export async function createExamAction(_: unknown, form: FormData): Promise<Acti
   const template =
     d.start === "cobe"
       ? cobeSimulationTemplate()
-      : [{ title: "Part 1", instructions: "", kind: "GENERAL" as const, choiceMode: "ALL" as const, questions: [] }];
+      : [
+          {
+            title: "Practice",
+            instructions: "",
+            kind: "GENERAL" as const,
+            choiceMode: "ALL" as const,
+            questions: [{ title: "", prompt: "", subQuestions: [] as string[], prepTimeSec: 30, maxRecordSec: 120, points: 25, allowReRecord: true, maxRecordings: 3 as number | null }],
+          },
+        ];
   const exam = await db.exam.create({
     data: {
       ownerId: user.id,

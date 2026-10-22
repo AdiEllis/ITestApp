@@ -9,6 +9,7 @@ import { LinkButton } from "@/components/ui/button";
 import { LEVEL_LABELS, MODE_LABELS } from "@/lib/exam-types";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/components/ui/cn";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "המבחנים שלי" };
 
@@ -40,6 +41,7 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
         description="מבחנים ותרגולים פרטיים שיצרת או העתקת. מבחן חדש הוא פרטי עד שתבחרו לשתף אותו."
         actions={
           <>
+            <HelpButton topic="exams" />
             <LinkButton href="/t/exams/import" variant="secondary">
               <FileUp className="size-4" /> העלאת מבחן מוכן
             </LinkButton>

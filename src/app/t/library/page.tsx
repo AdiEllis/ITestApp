@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { LEVEL_LABELS, MODE_LABELS } from "@/lib/exam-types";
 import { formatDate } from "@/lib/format";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "מאגר משותף" };
 
@@ -39,7 +40,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="מאגר מבחנים משותף" description="מבחנים שמורים שיתפו. העתיקו מבחן לספרייה שלכם כדי לערוך ולהקצות אותו — המקור לא ישתנה." />
+      <PageHeader title="מאגר מבחנים משותף" description="מבחנים שמורים שיתפו. העתיקו מבחן לספרייה שלכם כדי לערוך ולהקצות אותו — המקור לא ישתנה." actions={<HelpButton topic="library" />} />
       <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ink-3" />

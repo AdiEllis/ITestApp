@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatScore } from "@/lib/format";
 import { snapshotOf } from "@/lib/attempts";
 import type { Prisma } from "@prisma/client";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "בדיקת הגשות" };
 
@@ -44,7 +45,7 @@ export default async function ReviewQueue({ searchParams }: { searchParams: Prom
   const q = (v: string, c?: string) => `/t/review?f=${v}${c ? `&classroomId=${c}` : ""}`;
   return (
     <>
-      <PageHeader title="בדיקת הגשות" description="האזנה להקלטות, מתן ציון ומשוב. הבדיקה נעשית על ידי המורה בלבד." />
+      <PageHeader title="בדיקת הגשות" description="האזנה להקלטות, מתן ציון ומשוב." actions={<HelpButton topic="reviewList" />} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="inline-flex flex-wrap rounded-lg bg-[#ebebe6] p-1 text-sm">
           {FILTERS.map((x) => (

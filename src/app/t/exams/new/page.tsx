@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/card";
 import { NewExamForm } from "./form";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "מבחן חדש" };
 
@@ -17,7 +18,8 @@ export default async function NewExamPage() {
           </Link>
         }
         title="מבחן חדש"
-        description="בחרו נקודת התחלה. כל ההגדרות ניתנות לשינוי בהמשך."
+        description="שלושה צעדים קצרים."
+        actions={<HelpButton topic="newExam" />}
       />
       <NewExamForm />
     </div>

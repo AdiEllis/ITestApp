@@ -6,6 +6,7 @@ import { Card, PageHeader } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { LinkButton } from "@/components/ui/button";
 import { AssignForm } from "./form";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "הקצאה חדשה" };
 
@@ -28,7 +29,8 @@ export default async function NewAssignmentPage({ searchParams }: { searchParams
             <ArrowRight className="size-4" /> משימות
           </Link>
         }
-        title="הקצאת מבחן"
+        title="הקצאת מבחן לכיתה"
+        actions={<HelpButton topic="newAssignment" />}
       />
       {exams.length === 0 || classes.length === 0 ? (
         <Alert tone="info" title={exams.length === 0 ? "אין מבחנים מפורסמים" : "אין כיתות פעילות"}>

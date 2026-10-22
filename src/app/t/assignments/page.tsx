@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { MODE_LABELS } from "@/lib/exam-types";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "משימות" };
 
@@ -32,9 +33,12 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
         title="משימות"
         description="מבחנים ותרגולים שהוקצו לכיתות, ומצב ההגשות."
         actions={
+          <>
+          <HelpButton topic="assignments" />
           <LinkButton href="/t/assignments/new">
             <Plus className="size-4" /> הקצאה חדשה
           </LinkButton>
+          </>
         }
       />
       {classes.length > 1 && (

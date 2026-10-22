@@ -36,7 +36,7 @@ test("simulation: prep timer → auto record → auto stop → time limit → au
 
   await t.goto("/t/exams/new");
   await t.locator("#title").fill("Timed simulation");
-  await t.getByRole("button", { name: "יצירה והמשך לעריכה" }).click();
+  await t.getByRole("button", { name: "יצירה", exact: true }).click();
   await expect(t).toHaveURL(/\/t\/exams\/(?!new$)\w+$/);
   const examId = t.url().split("/").pop()!;
   await t.locator('input[type=file][accept^="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,video/mp4"]').setInputFiles(path.join(FIX, "clip.webm"));

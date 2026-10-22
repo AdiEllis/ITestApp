@@ -9,10 +9,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime, formatScore } from "@/lib/format";
 import { MODE_LABELS } from "@/lib/exam-types";
 import { JoinAnotherClass } from "./join-another";
+import { Alert } from "@/components/ui/alert";
 
 export const metadata = { title: "המשימות שלי" };
 
-export default async function StudentHome() {
+export default async function StudentHome({ searchParams }: { searchParams: Promise<{ joined?: string }> }) {
+  const { joined } = await searchParams;
   const user = await requireUser(["STUDENT"]);
   const now = new Date();
   const assignments = await db.assignment.findMany({
@@ -44,6 +46,11 @@ export default async function StudentHome() {
         <p className="mt-1 text-ink-2">{open.length ? `יש לך ${open.length} משימות פתוחות.` : "אין משימות פתוחות כרגע."}</p>
       </div>
 
+      {joined && (
+        <Alert tone="ok" title={`הצטרפת לכיתה ${joined}`}>
+          המבחנים שהמורה תשלח יופיעו כאן. בפעם הבאה פשוט נכנסים עם &quot;התחברות עם Google&quot;.
+        </Alert>
+      )}
       {classes === 0 && (
         <Card className="p-5">
           <h2 className="font-semibold">עדיין לא הצטרפת לכיתה</h2>

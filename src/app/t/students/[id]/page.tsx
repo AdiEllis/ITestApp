@@ -11,6 +11,7 @@ import { ScoreTrend } from "@/components/score-trend";
 import { formatDate, formatDateTime, formatScore } from "@/lib/format";
 import { snapshotOf } from "@/lib/attempts";
 import { StudentAdmin } from "./student-admin";
+import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "התקדמות תלמיד/ה" };
 
@@ -43,6 +44,7 @@ export default async function StudentProgress({ params }: { params: Promise<{ id
           )
         }
         title={student.name}
+        actions={<HelpButton topic="student" />}
         description={
           <>
             <span dir="ltr" className="font-mono text-sm">

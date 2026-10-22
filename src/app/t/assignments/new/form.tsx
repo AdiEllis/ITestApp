@@ -43,48 +43,49 @@ export function AssignForm({
           ))}
         </Select>
       </Field>
-      <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm font-medium">למי</legend>
-        <input type="hidden" name="target" value={target} />
-        <div className="inline-flex rounded-lg bg-subtle p-1 text-sm">
-          {(
-            [
-              ["class", "כל הכיתה"],
-              ["students", "תלמידים מסוימים"],
-            ] as const
-          ).map(([v, l]) => (
-            <button key={v} type="button" onClick={() => setTarget(v)} aria-pressed={target === v} className={cn("h-8 rounded-md px-3 font-medium", target === v ? "bg-surface shadow-sm" : "text-ink-2")}>
-              {l}
-            </button>
-          ))}
-        </div>
-        {target === "students" && (
-          <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-line p-3">
-            {cls.students.length === 0 ? <p className="text-sm text-ink-3">אין תלמידים בכיתה</p> : cls.students.map((s) => <Checkbox key={s.id} name="studentIds" value={s.id} label={s.name} />)}
-          </div>
-        )}
-      </fieldset>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="נפתח ב־" htmlFor="opensAt" hint="ריק = מיד">
-          <Input id="opensAt" name="opensAt" type="datetime-local" dir="ltr" />
-        </Field>
-        <Field label="מועד הגשה" htmlFor="dueAt" hint="ריק = ללא מועד">
-          <Input id="dueAt" name="dueAt" type="datetime-local" dir="ltr" />
-        </Field>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="מספר ניסיונות מרבי" htmlFor="maxAttempts" hint="ריק = ללא הגבלה">
-          <Input id="maxAttempts" name="maxAttempts" type="number" min={1} max={50} defaultValue={exam?.mode === "SIMULATION" ? 1 : ""} key={examId} />
-        </Field>
-        <div className="flex items-end pb-2">
-          <Checkbox name="allowLate" defaultChecked label="לאפשר הגשה באיחור" />
-        </div>
-      </div>
-      <Field label="הנחיות לתלמידים (לא חובה)" htmlFor="instructions">
-        <Textarea id="instructions" name="instructions" rows={2} />
+      <Field label="עד מתי להגיש? (לא חובה)" htmlFor="dueAt" hint="אפשר להשאיר ריק">
+        <Input id="dueAt" name="dueAt" type="datetime-local" dir="ltr" />
       </Field>
+      <details className="rounded-xl border border-line">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-ink-2 hover:text-ink">עוד אפשרויות (לא חובה)</summary>
+        <div className="space-y-5 border-t border-line p-4">
+          <fieldset className="space-y-2">
+            <legend className="mb-1.5 text-sm font-medium">למי</legend>
+            <input type="hidden" name="target" value={target} />
+            <div className="inline-flex rounded-lg bg-subtle p-1 text-sm">
+              {(
+                [
+                  ["class", "כל הכיתה"],
+                  ["students", "תלמידים מסוימים"],
+                ] as const
+              ).map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setTarget(v)} aria-pressed={target === v} className={cn("h-8 rounded-md px-3 font-medium", target === v ? "bg-surface shadow-sm" : "text-ink-2")}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {target === "students" && (
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-line p-3">
+                {cls.students.length === 0 ? <p className="text-sm text-ink-3">אין תלמידים בכיתה</p> : cls.students.map((s) => <Checkbox key={s.id} name="studentIds" value={s.id} label={s.name} />)}
+              </div>
+            )}
+          </fieldset>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="נפתח ב־" htmlFor="opensAt" hint="ריק = מיד">
+              <Input id="opensAt" name="opensAt" type="datetime-local" dir="ltr" />
+            </Field>
+            <Field label="מספר ניסיונות מרבי" htmlFor="maxAttempts" hint="ריק = ללא הגבלה">
+              <Input id="maxAttempts" name="maxAttempts" type="number" min={1} max={50} defaultValue={exam?.mode === "SIMULATION" ? 1 : ""} key={examId} />
+            </Field>
+          </div>
+          <Checkbox name="allowLate" defaultChecked label="לאפשר הגשה באיחור" />
+          <Field label="הודעה לתלמידים" htmlFor="instructions">
+            <Textarea id="instructions" name="instructions" rows={2} />
+          </Field>
+        </div>
+      </details>
       <FormMessage state={state} />
-      <SubmitButton pendingText="מקצה…">הקצאה</SubmitButton>
+      <SubmitButton size="lg" pendingText="שולח…">הקצאה</SubmitButton>
     </form>
   );
 }

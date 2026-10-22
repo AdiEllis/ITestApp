@@ -73,7 +73,7 @@ test.describe.serial("full teacher ↔ student flow", () => {
 
   test("1. teacher signs up and sees onboarding", async () => {
     await registerTeacher(teacher, "Dana Teacher", state.teacherEmail, "Test High School");
-    await expect(teacher.getByText("כמה צעדים כדי להתחיל")).toBeVisible();
+    await expect(teacher.getByRole("heading", { name: "צעדים ראשונים" })).toBeVisible();
     await shot(teacher, "01-teacher-onboarding");
   });
 
@@ -99,8 +99,8 @@ test.describe.serial("full teacher ↔ student flow", () => {
   test("3. teacher builds a COBE-structured exam, uploads the Part C video and publishes", async () => {
     await teacher.goto("/t/exams/new");
     await teacher.locator("#title").fill(state.examTitle);
-    await teacher.locator("#mode").selectOption("PRACTICE");
-    await teacher.getByRole("button", { name: "יצירה והמשך לעריכה" }).click();
+    await teacher.getByText("תרגול רגיל").click();
+    await teacher.getByRole("button", { name: "יצירה", exact: true }).click();
     await expect(teacher).toHaveURL(/\/t\/exams\/(?!new$|import$)\w+$/);
     state.examId = teacher.url().split("/").pop();
 
@@ -146,7 +146,7 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await teacher.locator("select").filter({ hasText: "מהקבצים שהועלו" }).first().selectOption({ label: "question.mp3" });
     await expect(teacher.locator('audio[src^="/api/media/"]').first()).toBeVisible();
     // A pasted YouTube link is embedded (privacy-enhanced) instead of uploading a file.
-    await teacher.getByLabel("קישור לסרטון (במקום העלאה)").fill("https://youtu.be/dQw4w9WgXcQ");
+    await teacher.getByLabel("סרטון לשאלה (קישור, לא חובה)").fill("https://youtu.be/dQw4w9WgXcQ");
     await expect(teacher.locator('iframe[src^="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"]')).toBeVisible();
     await expect(teacher.getByText("נשמר", { exact: true })).toBeVisible({ timeout: 15_000 });
     await teacher.getByRole("button", { name: "פרסום" }).click();

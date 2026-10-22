@@ -1,5 +1,6 @@
 "use client";
 import { RecordingAudio } from "@/components/media/recording-audio";
+import { HelpButton } from "@/components/help/help-button";
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -139,6 +140,7 @@ export function Grader(props: {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <HelpButton topic="review" />
           {props.position && <span className="text-sm text-ink-3 tabular" dir="ltr">{props.position.index}/{props.position.total}</span>}
           <LinkButton href={props.prevId ? `/t/review/${props.prevId}` : "#"} variant="secondary" size="sm" aria-disabled={!props.prevId} className={!props.prevId ? "pointer-events-none opacity-40" : ""}>
             <ChevronRight className="size-4" /> הקודם
