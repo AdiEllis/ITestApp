@@ -15,7 +15,7 @@ import { examSettingsSchema, OPEN_RECORD_SEC, spokenText } from "@/lib/exam-type
 import { mediaCategory } from "@/lib/files";
 import { storage } from "@/lib/storage";
 import { rateLimit } from "@/lib/rate-limit";
-import { synthesize, ttsProvider, TTS_MAX_CHARS } from "@/lib/tts";
+import { synthesize, TtsError, ttsProvider, TTS_MAX_CHARS } from "@/lib/tts";
 import { toBuilderState, type BuilderExam, type MediaMeta } from "@/lib/builder-state";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; problems?: string[] };
@@ -339,7 +339,17 @@ export async function generateSpeechAction(
       result = await synthesize(clean);
     } catch (e) {
       console.error("[tts]", e);
-      throw new AppError(502, "שירות ההקראה לא הגיב. נסו שוב בעוד רגע, או הקליטו את השאלה בקול.");
+      const reason = e instanceof TtsError ? e.reason : "service";
+      throw new AppError(
+        502,
+        reason === "key"
+          ? "שירות הקול סירב למפתח. בדקו ב-Vercel שהערך של AZURE_SPEECH_KEY הוא KEY 1 מ-Azure, ושהמשתנה מסומן Production."
+          : reason === "region"
+            ? "שם האזור של שירות הקול לא נכון. בדקו ב-Vercel שהערך של AZURE_SPEECH_REGION זהה ל-Location/Region ב-Azure (למשל northeurope)."
+            : reason === "timeout"
+              ? "שירות הקול לא ענה בזמן. נסו שוב בעוד רגע, או הקליטו את השאלה בקול."
+              : "שירות הקול החזיר שגיאה. נסו שוב בעוד רגע, או הקליטו את השאלה בקול.",
+      );
     }
     const key = newStorageKey("QUESTION_AUDIO", result.mimeType);
     await storage().put(key, result.audio, result.mimeType);

@@ -20,6 +20,32 @@ export interface TtsResult {
 
 export const TTS_MAX_CHARS = 3000;
 
+/** Why the voice service failed, so the teacher gets a message she can act on. */
+export class TtsError extends Error {
+  constructor(
+    public reason: "key" | "region" | "timeout" | "service",
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+async function call(url: string, init: RequestInit, name: string): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
+  } catch (e) {
+    const err = e as Error & { cause?: { code?: string } };
+    if (err.name === "TimeoutError" || err.name === "AbortError") throw new TtsError("timeout", `${name} timed out`);
+    // An unknown host means the region name is wrong.
+    if (err.cause?.code === "ENOTFOUND" || err instanceof TypeError) throw new TtsError("region", `${name}: ${err.message} ${err.cause?.code ?? ""}`);
+    throw new TtsError("service", `${name}: ${err.message}`);
+  }
+  if (res.status === 401 || res.status === 403) throw new TtsError("key", `${name} ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new TtsError("service", `${name} ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return res;
+}
+
 export function ttsProvider(): TtsProvider | null {
   const forced = process.env.TTS_PROVIDER;
   if (forced === "fake" || forced === "azure" || forced === "google") return forced;
@@ -48,26 +74,26 @@ function toSsml(text: string, lang: string, voice: string, rate: number) {
 }
 
 async function azure(text: string, lang: keyof typeof AZURE_VOICES, rate: number): Promise<TtsResult> {
-  const region = process.env.AZURE_SPEECH_REGION!;
+  // Accept "North Europe" or "northeurope" as typed in the portal.
+  const region = process.env.AZURE_SPEECH_REGION!.trim().toLowerCase().replace(/\s+/g, "");
+  if (!/^[a-z0-9]+$/.test(region)) throw new TtsError("region", `bad region "${region}"`);
   const voice = (lang === "he-IL" && process.env.AZURE_TTS_VOICE) || AZURE_VOICES[lang];
-  const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+  const res = await call(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
     method: "POST",
     headers: {
-      "Ocp-Apim-Subscription-Key": process.env.AZURE_SPEECH_KEY!,
+      "Ocp-Apim-Subscription-Key": process.env.AZURE_SPEECH_KEY!.trim(),
       "Content-Type": "application/ssml+xml",
       "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
       "User-Agent": "oralprep",
     },
     body: toSsml(text, lang, voice, rate),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Azure TTS ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }, "Azure TTS");
   return { audio: Buffer.from(await res.arrayBuffer()), mimeType: "audio/mpeg" };
 }
 
 async function google(text: string, lang: keyof typeof GOOGLE_VOICES, rate: number): Promise<TtsResult> {
   const voice = (lang === "he-IL" && process.env.GOOGLE_TTS_VOICE) || GOOGLE_VOICES[lang];
-  const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(process.env.GOOGLE_TTS_API_KEY!)}`, {
+  const res = await call(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(process.env.GOOGLE_TTS_API_KEY!.trim())}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -75,9 +101,7 @@ async function google(text: string, lang: keyof typeof GOOGLE_VOICES, rate: numb
       voice: { languageCode: voice.slice(0, 5), name: voice },
       audioConfig: { audioEncoding: "MP3", speakingRate: rate },
     }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Google TTS ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }, "Google TTS");
   const json = (await res.json()) as { audioContent?: string };
   if (!json.audioContent) throw new Error("Google TTS returned no audio");
   return { audio: Buffer.from(json.audioContent, "base64"), mimeType: "audio/mpeg" };
