@@ -9,11 +9,12 @@ export default async function Home() {
   const user = await getCurrentUser();
   if (user) redirect(homeFor(user.role));
   const features = [
-    { icon: Mic, title: "הקלטה אמינה מהטלפון", body: "בדיקת מיקרופון, שמירה מקומית עד שההעלאה מצליחה, וחיווי ברור על כל שלב." },
-    { icon: CalendarClock, title: "תרגול לאורך כל השנה", body: "משימות קצרות במצב תרגול, וסימולציות מלאות עם זמני הכנה והקלטה." },
+    { icon: Headphones, title: "שומעים את השאלה", body: "כל שאלה מוקראת בקול. המורה מאזינה ומאשרת את ההקראה, וכל התלמידים שומעים בדיוק אותה." },
+    { icon: Mic, title: "עונים בהקלטה", body: "בדיקת מיקרופון, שמירה מקומית עד שההעלאה מצליחה, וחיווי ברור על כל שלב." },
+    { icon: CalendarClock, title: "לאורך כל השנה, בכל מקצוע", body: "מבחן קצר על מה שנלמד עד עכשיו, בבית או בכיתה, בלי מורה מקריאה צמודה." },
+    { icon: ShieldCheck, title: "מבחן בכיתה במחשב נעול", body: "המבחן נפתח רק בתוך Safe Exam Browser, בלי גישה לאתרים אחרים." },
     { icon: ClipboardCheck, title: "בדיקה ומשוב של המורה", body: "האזנה, מחוון ניתן להגדרה, ציון משוקלל ומשוב — בלי בינה מלאכותית." },
     { icon: Library, title: "מאגר מבחנים משותף", body: "שיתוף מבחנים בין מורים והעתקה לספרייה אישית לעריכה חופשית." },
-    { icon: Headphones, title: "שאלות עם שמע ווידאו", body: "הקלטת שאלות במיקרופון, העלאת קובצי שמע, סרטונים ומסמכים." },
     { icon: ShieldCheck, title: "פרטיות תלמידים", body: "הקלטות פרטיות בגישה זמנית בלבד, הרשאות לפי תפקיד ומדיניות מחיקה." },
   ];
   return (
@@ -31,12 +32,12 @@ export default async function Home() {
       </header>
       <main className="mx-auto max-w-6xl px-5">
         <section className="py-14 sm:py-20">
-          <p className="mb-4 inline-flex rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-2">לחטיבה העליונה · 4 ו־5 יח״ל</p>
+          <p className="mb-4 inline-flex rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-2">לתלמידים עם התאמות הקראה והכתבה</p>
           <h1 className="max-w-2xl text-[34px] font-semibold leading-[1.15] tracking-tight sm:text-5xl">
-            תרגול הבגרות בעל פה באנגלית, <span className="text-brand">לאורך כל השנה.</span>
+            מבחנים בעל פה, <span className="text-brand">לאורך כל השנה.</span>
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-2">
-            מורים יוצרים ומקצים מבחנים, תלמידים מקליטים תשובות מכל מכשיר, והמורה מאזינה, נותנת ציון ומשוב.
+            המורה כותבת שאלות על החומר שנלמד. התלמיד/ה שומע/ת כל שאלה ומקליט/ה תשובה, והמורה מאזינה, נותנת ציון ומשוב.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <LinkButton href="/register" size="lg">

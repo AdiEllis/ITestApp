@@ -8,7 +8,7 @@ import { logoutAction } from "@/app/(auth)/actions";
 import { DemoBanner } from "@/components/demo-banner";
 
 const NAV = [
-  { href: "/s", label: "משימות", short: "משימות", icon: ListTodo, exact: true },
+  { href: "/s", label: "המבחנים שלי", short: "מבחנים", icon: ListTodo, exact: true },
   { href: "/s/history", label: "היסטוריה וציונים", short: "ציונים", icon: History },
   { href: "/s/mic-check", label: "בדיקת מיקרופון", short: "מיקרופון", icon: Mic },
   { href: "/help/students", label: "עזרה", short: "עזרה", icon: CircleHelp },

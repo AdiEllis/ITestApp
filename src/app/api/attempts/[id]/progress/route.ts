@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { AppError, getOwnAttempt } from "@/lib/authz";
 import { json, withUser } from "@/lib/http";
 import { findQuestion, snapshotOf } from "@/lib/attempts";
+import { assertSebIfRequired } from "@/lib/seb";
 
 const bodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("play"), mediaKey: z.string().max(200) }),
@@ -21,6 +22,7 @@ export const POST = withUser<{ params: Promise<{ id: string }> }>(async (req, us
     await tx.$queryRaw`SELECT id FROM "Attempt" WHERE id = ${id} FOR UPDATE`;
     const attempt = await getOwnAttempt(user, id);
     if (attempt.status !== "IN_PROGRESS") throw new AppError(409, "המבחן כבר הוגש");
+    assertSebIfRequired(attempt.assignment, req.headers.get("user-agent"));
     const snapshot = snapshotOf(attempt);
     const progress = { ...((attempt.progress ?? {}) as Progress) };
     let choices = { ...((attempt.choices ?? {}) as Record<string, string>) };

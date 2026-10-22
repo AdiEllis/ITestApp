@@ -1,4 +1,4 @@
-// COBE Practice — data model
+// OralPrep — oral practice and exams for any subject. Data model
 // Media files (recordings, audio, video, documents) are NEVER stored in the DB:
 // only metadata + a private object-storage key.
 
@@ -195,7 +195,9 @@ model Exam {
   owner        User       @relation("ExamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   title        String
   description  String?
-  level        ExamLevel  @default(FOUR_AND_FIVE)
+  // School subject (e.g. היסטוריה). Free text.
+  subject      String?
+  level        ExamLevel  @default(OTHER)
   mode         ExamMode   @default(PRACTICE)
   status       ExamStatus @default(DRAFT)
   topics       String[]   @default([])
@@ -250,13 +252,21 @@ model Question {
   section         ExamSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   order           Int
   title           String?
-  // Main prompt (English). Displayed LTR.
+  // Main prompt. Displayed with automatic direction (Hebrew, Arabic or English).
   prompt          String
+  // Optional text for the read-aloud voice when it should differ from what is shown (e.g. with niqqud).
+  readText        String?
   // Question set items answered in one continuous recording.
   subQuestions    String[]    @default([])
   instructions    String?
   audioId         String?
   audio           MediaFile?  @relation("QuestionAudio", fields: [audioId], references: [id], onDelete: SetNull)
+  // How the question audio was made: "TTS" (automatic voice) or "TEACHER" (recorded/uploaded).
+  audioSource     String?
+  // The spoken text at the time the audio was attached, to detect audio that no longer matches the question.
+  audioText       String?
+  // The teacher listened to the audio and confirmed it reads the question correctly.
+  audioApproved   Boolean     @default(false)
   videoId         String?
   video           MediaFile?  @relation("QuestionVideo", fields: [videoId], references: [id], onDelete: SetNull)
   imageId         String?
@@ -326,6 +336,12 @@ model Assignment {
   // Max attempts per student; null = unlimited (practice).
   maxAttempts  Int?
   instructions String?
+  // Classroom exam: may only be taken inside Safe Exam Browser started with this assignment's config file.
+  requireSeb   Boolean    @default(false)
+  // Secret added to SEB's user agent by the generated config file.
+  sebKey       String?
+  // Password the proctor types to quit SEB early.
+  sebQuitPassword String?
   isDemo       Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt

@@ -30,12 +30,12 @@ export function GettingStarted({ steps }: { steps: StartStep[] }) {
       </div>
       <ol className="divide-y divide-line">
         {steps.map((s, i) => (
-          <li key={s.title} className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4", i === next && "bg-brand-soft/50")}>
-            <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold", s.done ? "bg-ok text-white" : i === next ? "bg-brand text-white" : "bg-subtle text-ink-3")}>
+          <li key={s.title} className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 px-5", s.done ? "py-2" : "py-4", i === next && "bg-brand-soft/50")}>
+            <span className={cn("grid shrink-0 place-items-center rounded-full text-sm font-semibold", s.done ? "size-6 ms-1 me-1" : "size-8", s.done ? "bg-ok text-white" : i === next ? "bg-brand text-white" : "bg-subtle text-ink-3")}>
               {s.done ? <Check className="size-4" /> : i + 1}
             </span>
             <div className="min-w-0 flex-1 basis-48">
-              <p className={cn("font-medium", s.done && "text-ink-3 line-through decoration-ink-3/40")}>{s.title}</p>
+              <p className={cn("font-medium", s.done && "text-sm text-ink-3 line-through decoration-ink-3/40")}>{s.title}</p>
               {!s.done && <p className="text-sm text-ink-2">{s.body}</p>}
             </div>
             {!s.done && (

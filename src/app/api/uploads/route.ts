@@ -7,6 +7,7 @@ import { newStorageKey } from "@/lib/exams";
 import { storage } from "@/lib/storage";
 import { rateLimit } from "@/lib/rate-limit";
 import { assertRecordingAllowed } from "@/lib/attempts";
+import { assertSebIfRequired } from "@/lib/seb";
 
 const bodySchema = z.object({
   kind: z.enum(["QUESTION_AUDIO", "QUESTION_VIDEO", "QUESTION_IMAGE", "SOURCE_DOCUMENT", "RECORDING"]),
@@ -28,6 +29,7 @@ export const POST = withUser(async (req, user) => {
   if (body.kind === "RECORDING") {
     if (!body.attemptId || !body.questionId) throw new AppError(400, "חסרים פרטי שאלה");
     const attempt = await getOwnAttempt(user, body.attemptId);
+    assertSebIfRequired(attempt.assignment, req.headers.get("user-agent"));
     await assertRecordingAllowed(attempt, body.questionId);
   } else if (user.role !== "TEACHER" && user.role !== "ADMIN") {
     throw forbidden();

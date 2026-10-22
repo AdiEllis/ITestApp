@@ -1,0 +1,130 @@
+import { expect, test, type Page } from "@playwright/test";
+import path from "node:path";
+
+/** Screenshot tour of every main page (for reviewing the UI). Run with: npx playwright test tour */
+
+const OUT = path.join(__dirname, ".tmp", "tour");
+const PW = "Teach3r-pass";
+const shot = (page: Page, name: string) => page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: true });
+
+test("tour", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const tctx = await browser.newContext({ permissions: ["microphone"], locale: "he-IL", viewport: { width: 1366, height: 800 } });
+  const t = await tctx.newPage();
+  await t.goto("/");
+  await shot(t, "00-landing");
+  await t.goto("/login");
+  await shot(t, "01-login");
+  await t.goto("/register");
+  await shot(t, "02-register");
+  await t.locator("#name").fill("עדי מורה");
+  await t.locator("#email").fill(`tour.${Date.now()}@school.test`);
+  await t.locator("#password").fill(PW);
+  await t.locator("#schoolName").fill("תיכון הדוגמה");
+  await t.getByRole("checkbox").check();
+  await t.getByRole("button", { name: "יצירת חשבון" }).click();
+  await expect(t).toHaveURL(/\/t$/);
+  await shot(t, "03-teacher-home-empty");
+
+  await t.goto("/t/classes");
+  await shot(t, "04-classes-empty");
+  await t.locator("#name").fill("י״א 2");
+  await t.getByRole("button", { name: "יצירת כיתה" }).click();
+  await shot(t, "05-class-new");
+  await t.locator("#names").fill("מאיה לוי\nיונתן כהן");
+  await t.getByRole("button", { name: "יצירת חשבונות" }).click();
+  const cells = t.locator("#credentials tbody tr").first().locator("td");
+  const student = { username: (await cells.nth(1).textContent())!.trim(), password: (await cells.nth(2).textContent())!.trim() };
+  await shot(t, "06-class-with-students");
+
+  await t.goto("/t/exams/new");
+  await shot(t, "07-exam-new");
+  await t.locator("#title").fill("מלחמת העולם הראשונה");
+  await t.locator("#subject").fill("היסטוריה");
+  await t.getByRole("button", { name: "יצירה", exact: true }).click();
+  await expect(t).toHaveURL(/\/t\/exams\/(?!new$)\w+$/);
+  const examUrl = t.url();
+  await shot(t, "08-builder-empty");
+  await t.getByLabel("השאלה", { exact: true }).fill("מה היו הגורמים לפרוץ מלחמת העולם הראשונה?");
+  await t.getByRole("button", { name: "יצירת הקראה אוטומטית" }).click();
+  await expect(t.getByText("צריך להאזין ולאשר")).toBeVisible({ timeout: 20_000 });
+  await t.getByLabel("האזנתי להקראה עד הסוף, והיא קוראת את השאלה נכון").check();
+  await expect(t.getByText("נשמר", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await shot(t, "09-builder-question");
+  await t.locator("summary", { hasText: "הגדרות לשאלה" }).click();
+  await t.locator("summary", { hasText: "הגדרות מתקדמות" }).click();
+  await shot(t, "10-builder-settings-open");
+  await t.getByRole("button", { name: "פרסום" }).click();
+  await expect(t.getByText("המבחן פורסם")).toBeVisible();
+  await shot(t, "11-builder-published");
+  await t.goto("/t/exams");
+  await shot(t, "12-exams-list");
+  await t.goto("/t/library");
+  await shot(t, "13-library");
+  await t.goto("/t/rubrics");
+  await shot(t, "14-rubrics");
+  await t.goto(examUrl);
+  await t.getByRole("link", { name: "שליחה לכיתה" }).click();
+  await shot(t, "15-assign-new");
+  await t.getByRole("button", { name: "שליחה לכיתה", exact: true }).click();
+  await expect(t).toHaveURL(/\/t\/assignments\/\w+$/);
+  const assignmentUrl = t.url();
+  await shot(t, "16-assignment");
+  await t.goto("/t/assignments");
+  await shot(t, "17-assignments-list");
+
+  // Student on a phone.
+  const sctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, permissions: ["microphone"], locale: "he-IL" });
+  const s = await sctx.newPage();
+  await s.goto("/login");
+  await s.locator("#identifier").fill(student.username);
+  await s.locator("#password").fill(student.password);
+  await s.getByRole("button", { name: "התחברות" }).click();
+  await shot(s, "30-student-change-password");
+  await s.locator("#current").fill(student.password);
+  await s.locator("#password").fill("Student-pass1");
+  await s.locator("#confirm").fill("Student-pass1");
+  await s.getByRole("button", { name: "שמירת סיסמה" }).click();
+  await expect(s).toHaveURL(/\/s$/);
+  await shot(s, "31-student-home");
+  await s.getByRole("link", { name: /מלחמת העולם/ }).first().click();
+  await shot(s, "32-student-assignment");
+  const skip = s.getByRole("button", { name: /דילוג/ });
+  if (await skip.count()) await skip.click();
+  await shot(s, "33-student-assignment-after-mic");
+  await s.getByRole("button", { name: "התחלת המבחן" }).click();
+  await expect(s).toHaveURL(/\/run$/);
+  await shot(s, "34-student-question");
+  await s.getByRole("button", { name: "התחלת הקלטה" }).click();
+  await s.waitForTimeout(2000);
+  await shot(s, "35-student-recording");
+  await s.getByRole("button", { name: "סיום הקלטה" }).click();
+  await expect(s.getByText("התשובה נשמרה")).toBeVisible({ timeout: 20_000 });
+  await shot(s, "36-student-saved");
+  await s.getByRole("button", { name: "סיום והגשה" }).click();
+  await shot(s, "37-student-submit-review");
+  await s.getByRole("button", { name: "הגשת המבחן" }).click();
+  await s.getByRole("button", { name: "הגשה סופית" }).click();
+  await expect(s.getByText("המבחן הוגש בהצלחה")).toBeVisible();
+  await shot(s, "38-student-done");
+  await s.goto("/s/history");
+  await shot(s, "39-student-history");
+  await s.goto("/s/mic-check");
+  await shot(s, "40-student-mic-check");
+
+  await t.goto("/t");
+  await shot(t, "18-teacher-home-full");
+  await t.goto(assignmentUrl);
+  await shot(t, "19-assignment-with-submission");
+  await t.goto("/t/review");
+  await shot(t, "20-review-list");
+  const grade = t.getByRole("link", { name: /בדיקה|לבדיקה/ }).first();
+  if (await grade.count()) {
+    await grade.click();
+    await shot(t, "21-grader");
+  }
+  await t.goto("/t/help");
+  await shot(t, "22-help");
+  await tctx.close();
+  await sctx.close();
+});

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { RecordingAudio } from "@/components/media/recording-audio";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { isInSeb } from "@/lib/seb";
 import { ArrowRight, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -32,22 +34,28 @@ export default async function AttemptResult({ params, searchParams }: { params: 
   const sp = await searchParams;
   const justSubmitted = sp.submitted === "1";
   const timedOut = sp.timeout === "1";
+  const inSeb = found.assignment.requireSeb && isInSeb((await headers()).get("user-agent"), found.assignment.sebKey);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link href="/s" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
-        <ArrowRight className="size-4" /> המשימות שלי
+        <ArrowRight className="size-4" /> המבחנים שלי
       </Link>
       {(timedOut || justSubmitted) && <ScrollTop />}
       {timedOut && (
         <Alert tone="info" title="הזמן של המבחן נגמר, והוא הוגש אוטומטית">
-          בסימולציה השעון ממשיך לרוץ גם כשיוצאים מהמבחן, כמו בבחינה אמיתית. כל מה שהוקלט עד אז נשמר ונשלח למורה.
+          במבחן השעון ממשיך לרוץ גם כשיוצאים מהמבחן, כמו בבחינה אמיתית. כל מה שהוקלט עד אז נשמר ונשלח למורה.
         </Alert>
       )}
       {justSubmitted && (
         <Alert tone="ok" title="המבחן הוגש בהצלחה">
           כל ההקלטות נשמרו. תקבלו משוב לאחר שהמורה תבדוק.
         </Alert>
+      )}
+      {inSeb && attempt.status !== "IN_PROGRESS" && (
+        <LinkButton href="/seb/quit" size="lg" className="w-full">
+          סיום ויציאה מהמבחן
+        </LinkButton>
       )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

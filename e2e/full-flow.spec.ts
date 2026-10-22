@@ -98,8 +98,9 @@ test.describe.serial("full teacher ↔ student flow", () => {
 
   test("3. teacher builds a COBE-structured exam, uploads the Part C video and publishes", async () => {
     await teacher.goto("/t/exams/new");
+    await teacher.getByRole("button", { name: /בגרות בעל פה באנגלית/ }).click();
     await teacher.locator("#title").fill(state.examTitle);
-    await teacher.getByText("תרגול רגיל").click();
+    await teacher.getByText("תרגול", { exact: true }).click();
     await teacher.getByRole("button", { name: "יצירה", exact: true }).click();
     await expect(teacher).toHaveURL(/\/t\/exams\/(?!new$|import$)\w+$/);
     state.examId = teacher.url().split("/").pop();
@@ -125,9 +126,9 @@ test.describe.serial("full teacher ↔ student flow", () => {
   });
 
   test("4. teacher assigns the exam to the class", async () => {
-    await teacher.getByRole("link", { name: "הקצאה לכיתה" }).click();
+    await teacher.getByRole("link", { name: "שליחה לכיתה" }).click();
     await expect(teacher).toHaveURL(/assignments\/new/);
-    await teacher.getByRole("button", { name: "הקצאה", exact: true }).click();
+    await teacher.getByRole("button", { name: "שליחה לכיתה", exact: true }).click();
     await expect(teacher).toHaveURL(/\/t\/assignments\/\w+$/);
     await expect(teacher.getByText("לא התחיל/ה").first()).toBeVisible();
   });
@@ -142,10 +143,15 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await expect(teacher).toHaveURL(/\/t\/exams\/(?!new$|import$)\w+$/);
     await expect(teacher.getByText("exam.pdf").first()).toBeVisible();
     await teacher.getByRole("button", { name: "הוספת שאלה" }).click();
-    await teacher.getByPlaceholder("Let's talk about…").fill("Listen to the recording and describe what you hear.");
+    await teacher.getByLabel("השאלה", { exact: true }).fill("Listen to the recording and describe what you hear.");
+    // The uploaded audio becomes the question's reading, which must be approved before publishing.
     await teacher.locator("select").filter({ hasText: "מהקבצים שהועלו" }).first().selectOption({ label: "question.mp3" });
     await expect(teacher.locator('audio[src^="/api/media/"]').first()).toBeVisible();
+    await expect(teacher.getByText("צריך להאזין ולאשר")).toBeVisible();
+    await teacher.getByLabel("האזנתי להקראה עד הסוף, והיא קוראת את השאלה נכון").check();
+    await expect(teacher.getByText("ההקראה אושרה")).toBeVisible();
     // A pasted YouTube link is embedded (privacy-enhanced) instead of uploading a file.
+    await teacher.getByText("הגדרות לשאלה").last().click();
     await teacher.getByLabel("סרטון לשאלה (קישור, לא חובה)").fill("https://youtu.be/dQw4w9WgXcQ");
     await expect(teacher.locator('iframe[src^="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"]')).toBeVisible();
     await expect(teacher.getByText("נשמר", { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -352,7 +358,7 @@ test.describe.serial("full teacher ↔ student flow", () => {
 
   test("12. teacher dashboard reflects submissions", async () => {
     await teacher.goto("/t");
-    await expect(teacher.getByText("הגשות שהתקבלו")).toBeVisible();
+    await expect(teacher.getByText("ממתינות לבדיקה", { exact: true })).toBeVisible();
     await shot(teacher, "12-dashboard");
   });
 });

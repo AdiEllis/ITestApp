@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">התחברות</h1>
-      <p className="mt-1 text-[15px] text-ink-2">תרגול הבחינה בעל פה באנגלית — למורים ולתלמידים.</p>
+      <p className="mt-1 text-[15px] text-ink-2">תרגול ומבחנים בעל פה, בכל מקצוע — למורים ולתלמידים.</p>
       <div className="mt-6 space-y-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-[var(--shadow-card)] sm:p-6">
         {error && <Alert tone="danger">{GOOGLE_ERRORS[error] ?? GOOGLE_ERRORS.failed}</Alert>}
         <InAppBrowserHint />

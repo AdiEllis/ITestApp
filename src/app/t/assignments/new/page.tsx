@@ -8,7 +8,7 @@ import { LinkButton } from "@/components/ui/button";
 import { AssignForm } from "./form";
 import { HelpButton } from "@/components/help/help-button";
 
-export const metadata = { title: "הקצאה חדשה" };
+export const metadata = { title: "שליחת מבחן לכיתה" };
 
 export default async function NewAssignmentPage({ searchParams }: { searchParams: Promise<{ examId?: string; classroomId?: string }> }) {
   const user = await requireUser(["TEACHER"]);
@@ -26,15 +26,15 @@ export default async function NewAssignmentPage({ searchParams }: { searchParams
       <PageHeader
         back={
           <Link href="/t/assignments" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
-            <ArrowRight className="size-4" /> משימות
+            <ArrowRight className="size-4" /> מבחנים שנשלחו
           </Link>
         }
-        title="הקצאת מבחן לכיתה"
+        title="שליחת מבחן לכיתה"
         actions={<HelpButton topic="newAssignment" />}
       />
       {exams.length === 0 || classes.length === 0 ? (
         <Alert tone="info" title={exams.length === 0 ? "אין מבחנים מפורסמים" : "אין כיתות פעילות"}>
-          {exams.length === 0 ? "יש ליצור ולפרסם מבחן לפני הקצאה." : "יש ליצור כיתה לפני הקצאה."}
+          {exams.length === 0 ? "יש ליצור ולפרסם מבחן לפני השליחה לכיתה." : "יש ליצור כיתה לפני השליחה לכיתה."}
           <div className="mt-3">
             <LinkButton href={exams.length === 0 ? "/t/exams" : "/t/classes"} size="sm" variant="secondary">
               {exams.length === 0 ? "למבחנים שלי" : "לכיתות"}

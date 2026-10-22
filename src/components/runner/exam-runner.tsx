@@ -17,9 +17,12 @@ import {
   Send,
   Square,
   Timer,
+  Volume2,
   WifiOff,
 } from "lucide-react";
 import type { ExamSnapshot, SnapshotQuestion, SnapshotSection } from "@/lib/exam-types";
+import { hasRecordLimit, spokenText } from "@/lib/exam-types";
+import { speakWithDevice, stopDeviceVoice } from "@/lib/client/speech";
 import { useRecorder, MIC_ERROR_TEXT, type RecordingResult } from "@/lib/client/recorder";
 import { formatDuration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -179,7 +182,7 @@ export function ExamRunner(props: RunnerProps) {
               {snapshot.title}
             </p>
             <p className="text-xs text-ink-3">
-              {simulation ? "סימולציה" : "תרגול"} · נענו {answeredCount} מתוך {steps.length}
+              {simulation ? "מבחן" : "תרגול"} · נענו {answeredCount} מתוך {steps.length}
             </p>
           </div>
           {remaining !== null && (
@@ -328,9 +331,11 @@ function StepView(props: {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-brand" lang="en" dir="ltr" style={{ textAlign: "right" }}>
-          {section.title}
-        </p>
+        {props.snapshot.sections.length > 1 && (
+          <p className="text-xs font-medium tracking-wide text-brand" dir="auto" style={{ textAlign: "start" }}>
+            {section.title}
+          </p>
+        )}
         {section.instructions && (
           <En className="mt-2 rounded-xl border border-line bg-surface px-4 py-3 text-[15px] leading-relaxed text-ink-2">{section.instructions}</En>
         )}
@@ -361,7 +366,7 @@ function StepView(props: {
                 className="rounded-[var(--radius-card)] border border-line bg-surface p-4 text-start shadow-[var(--shadow-card)] transition-colors hover:border-brand"
               >
                 <En as="p" className="text-xs font-medium text-ink-3">
-                  {q.title || `Topic ${i + 1}`}
+                  {q.title || `נושא ${i + 1}`}
                 </En>
                 <En as="p" className="mt-1 text-[17px] font-medium leading-snug">
                   {q.prompt}
@@ -384,17 +389,35 @@ function QuestionView(props: Parameters<typeof StepView>[0] & { question: Snapsh
   const recorded = (answer?.recordingCount ?? 0) > 0;
   return (
     <div className="space-y-5">
+      {q.audioId ? (
+        <div className="rounded-[var(--radius-card)] border border-brand-line bg-brand-soft/50 p-4">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-strong">
+            <Volume2 className="size-4" /> האזינו לשאלה
+          </p>
+          <LimitedMedia
+            src={`/api/media/${q.audioId}`}
+            mimeType={media[q.audioId]?.mimeType ?? "audio/mpeg"}
+            limit={q.maxMediaPlays}
+            used={plays[`${q.id}:audio`] ?? 0}
+            onPlay={() => props.onPlay(`${q.id}:audio`)}
+            label="הקראת השאלה"
+            autoPlay={!recorded}
+          />
+        </div>
+      ) : snapshot.settings.deviceVoiceFallback && spokenText(q) ? (
+        <DeviceVoiceButton text={spokenText(q)} />
+      ) : null}
       <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
         {step.section.choiceMode === "CHOOSE_ONE" && (
           <p className="mb-2 text-xs text-ink-3">
-            בחרת: <span lang="en">{q.title}</span>
+            בחרת: <span dir="auto">{q.title}</span>
           </p>
         )}
         <En as="h2" className="text-[19px] font-semibold leading-snug">
           {q.prompt || q.title}
         </En>
         {q.subQuestions.length > 0 && (
-          <ol lang="en" dir="ltr" className="mt-4 list-decimal space-y-2 ps-6 text-left text-[16px] leading-relaxed text-ink">
+          <ol dir="auto" className="mt-4 list-decimal space-y-2 ps-6 text-start text-[16px] leading-relaxed text-ink">
             {q.subQuestions.map((s, i) => (
               <li key={i}>{s}</li>
             ))}
@@ -405,7 +428,7 @@ function QuestionView(props: Parameters<typeof StepView>[0] & { question: Snapsh
             {q.instructions}
           </En>
         )}
-        {(q.audioId || q.videoId || q.imageId || parseVideo(q.videoUrl ?? "")) && (
+        {(q.videoId || q.imageId || parseVideo(q.videoUrl ?? "")) && (
           <div className="mt-5 space-y-3">
             {q.imageId && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -414,12 +437,6 @@ function QuestionView(props: Parameters<typeof StepView>[0] & { question: Snapsh
             {parseVideo(q.videoUrl ?? "") && <VideoEmbed src={parseVideo(q.videoUrl ?? "")!} />}
             {q.videoId && (
               <LimitedMedia src={`/api/media/${q.videoId}`} mimeType={media[q.videoId]?.mimeType ?? "video/mp4"} limit={q.maxMediaPlays} used={plays[`${q.id}:video`] ?? 0} onPlay={() => props.onPlay(`${q.id}:video`)} label="סרטון השאלה" />
-            )}
-            {q.audioId && (
-              <div className="rounded-xl bg-subtle p-3">
-                <p className="mb-2 text-xs font-medium text-ink-2">האזינו לשאלה</p>
-                <LimitedMedia src={`/api/media/${q.audioId}`} mimeType={media[q.audioId]?.mimeType ?? "audio/mpeg"} limit={q.maxMediaPlays} used={plays[`${q.id}:audio`] ?? 0} onPlay={() => props.onPlay(`${q.id}:audio`)} label="שמע השאלה" />
-              </div>
             )}
           </div>
         )}
@@ -439,6 +456,30 @@ function QuestionView(props: Parameters<typeof StepView>[0] & { question: Snapsh
         onRecorded={(r) => props.onRecorded(q.id, r)}
         onRetryUpload={props.onRetryUpload}
       />
+    </div>
+  );
+}
+
+/** Reads the question with the device's own voice, when the teacher allowed questions without audio. */
+function DeviceVoiceButton({ text }: { text: string }) {
+  const [speaking, setSpeaking] = useState(false);
+  useEffect(() => () => stopDeviceVoice(), []);
+  return (
+    <div className="rounded-[var(--radius-card)] border border-brand-line bg-brand-soft/50 p-4">
+      <Button
+        variant="secondary"
+        onClick={() => {
+          if (speaking) {
+            stopDeviceVoice();
+            setSpeaking(false);
+            return;
+          }
+          setSpeaking(true);
+          speakWithDevice(text, () => setSpeaking(false));
+        }}
+      >
+        {speaking ? <Square className="size-3.5 fill-current" /> : <Volume2 className="size-4" />} {speaking ? "עצירה" : "השמעת השאלה"}
+      </Button>
     </div>
   );
 }
@@ -468,6 +509,7 @@ function RecordPanel(props: {
 
   // Preparation time (simulation): starts when the question is shown, persists across reloads.
   const needsPrep = q.prepTimeSec > 0 && !props.recorded && count === 0;
+  const limited = hasRecordLimit(q.maxRecordSec);
   const [prepLeft, setPrepLeft] = useState<number | null>(null);
   const prepDone = useRef(false);
   // Auto-start only when the student watched the countdown run out on this screen. If it ran out
@@ -540,14 +582,14 @@ function RecordPanel(props: {
           </div>
           <p className="font-mono text-4xl font-semibold tabular text-ink" dir="ltr">
             {formatDuration(recorder.elapsed)}
-            <span className="text-lg text-ink-3"> / {formatDuration(q.maxRecordSec)}</span>
+            {limited && <span className="text-lg text-ink-3"> / {formatDuration(q.maxRecordSec)}</span>}
           </p>
-          <ProgressBar value={recorder.elapsed / q.maxRecordSec} tone="rec" label="זמן הקלטה" />
+          {limited && <ProgressBar value={recorder.elapsed / q.maxRecordSec} tone="rec" label="זמן הקלטה" />}
           <LevelMeter level={recorder.level} bars={24} />
           <Button size="lg" onClick={stop} className="w-full max-w-xs bg-rec hover:bg-[#b82d31]">
             <Square className="size-4 fill-current" /> סיום הקלטה
           </Button>
-          <p className="text-xs text-ink-3">ענו על כל השאלות בהקלטה אחת רציפה. ההקלטה תיעצר אוטומטית בתום הזמן.</p>
+          <p className="text-xs text-ink-3">{limited ? "ענו על כל השאלות בהקלטה אחת רציפה. ההקלטה תיעצר אוטומטית בתום הזמן." : "כשסיימתם לענות, לחצו על סיום הקלטה."}</p>
         </div>
       ) : needsPrep && prepLeft !== null && prepLeft > 0 ? (
         <div className="flex flex-col items-center gap-3 text-center">
@@ -565,9 +607,11 @@ function RecordPanel(props: {
         </div>
       ) : count === 0 && !uploadStatus ? (
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-ink-2">
-            זמן הקלטה מרבי: <span className="font-medium tabular">{formatDuration(q.maxRecordSec)}</span>
-          </p>
+          {limited && (
+            <p className="text-sm text-ink-2">
+              זמן הקלטה מרבי: <span className="font-medium tabular">{formatDuration(q.maxRecordSec)}</span>
+            </p>
+          )}
           <Button size="lg" onClick={start} disabled={recorder.state === "preparing"} className="w-full max-w-xs">
             {recorder.state === "preparing" ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />} התחלת הקלטה
           </Button>
@@ -666,6 +710,7 @@ function ReviewScreen(props: {
   preview: boolean;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const multiPart = new Set(props.steps.map((s) => s.section.id)).size > 1;
   const missing = props.steps.filter((s) => !s.question || !props.answers[s.question.id]?.recordingCount).length;
   return (
     <div className="space-y-5">
@@ -684,8 +729,9 @@ function ReviewScreen(props: {
                 {done ? <Check className="size-4" /> : <AlertTriangle className="size-3.5" />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium" lang="en" dir="ltr" style={{ textAlign: "right" }}>
-                  {s.section.title} · {s.question?.title || s.question?.prompt || "Choose a topic"}
+                <p className="truncate text-sm font-medium" dir="auto" style={{ textAlign: "start" }}>
+                  {multiPart ? `${s.section.title} · ` : ""}
+                  {s.question?.title || s.question?.prompt || "בחירת נושא"}
                 </p>
                 <p className="text-xs text-ink-3">
                   {st?.state === "uploading" ? "מעלה…" : st?.state === "waiting-network" ? "ממתין לחיבור" : st?.state === "failed" ? "שגיאה בשמירה" : done ? `נשמר · ${formatDuration(a?.durationSec)}` : "לא נענתה"}

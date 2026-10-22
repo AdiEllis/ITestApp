@@ -89,7 +89,7 @@ export function MicCheck({ onPassed, compact }: { onPassed?: () => void; compact
               <Square className="size-3.5 fill-current" /> עצירה
             </Button>
           )}
-          {stage === "recording" && <p lang="en" dir="ltr" className="text-left text-sm text-ink-2">Say: “Hello, my name is … and I am ready for the test.”</p>}
+          {stage === "recording" && <p className="text-sm text-ink-2">אמרו למשל: ״שלום, קוראים לי … ואני מוכן/ה למבחן.״</p>}
         </div>
       )}
       {stage === "playback" && url && (

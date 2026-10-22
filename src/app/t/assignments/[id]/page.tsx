@@ -13,6 +13,7 @@ import { formatDateTime, formatScore, toLocalInput } from "@/lib/format";
 import { MODE_LABELS } from "@/lib/exam-types";
 import { deleteAssignmentAction } from "../../_actions/assignments";
 import { AssignmentSettings } from "./settings";
+import { SebPanel } from "./seb-panel";
 
 type RowStatus = "not_started" | "in_progress" | "submitted" | "draft" | "published" | "returned";
 const STATUS: Record<RowStatus, { label: string; tone: Tone }> = {
@@ -63,7 +64,7 @@ export default async function AssignmentPage({ params, searchParams }: { params:
       <PageHeader
         back={
           <Link href="/t/assignments" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
-            <ArrowRight className="size-4" /> משימות
+            <ArrowRight className="size-4" /> מבחנים שנשלחו
           </Link>
         }
         title={<span dir="auto">{assignment.exam.title}</span>}
@@ -75,8 +76,8 @@ export default async function AssignmentPage({ params, searchParams }: { params:
             </LinkButton>
             <ConfirmAction
               action={deleteAssignmentAction.bind(null, id)}
-              trigger="מחיקת משימה"
-              title="למחוק את המשימה?"
+              trigger="מחיקה"
+              title="למחוק את השליחה לכיתה?"
               body={attempts.length ? `יימחקו גם ${attempts.length} ניסיונות של תלמידים, כולל ההקלטות והציונים. לא ניתן לשחזר.` : "המשימה תוסר מהתלמידים."}
               confirmLabel="מחיקה"
             />
@@ -139,11 +140,16 @@ export default async function AssignmentPage({ params, searchParams }: { params:
             </div>
           )}
         </Card>
-        <Card className="h-fit p-5">
-          <h2 className="mb-4 text-[15px] font-semibold">הגדרות משימה</h2>
-          <AssignmentSettings id={id} dueAt={toLocalInput(assignment.dueAt)} allowLate={assignment.allowLate} maxAttempts={assignment.maxAttempts} />
-          <p className="mt-4 text-xs text-ink-3">נפתח {formatDateTime(assignment.opensAt)}</p>
-        </Card>
+        <div className="space-y-6">
+          <Card className="h-fit p-5">
+            <SebPanel id={id} requireSeb={assignment.requireSeb} quitPassword={assignment.sebQuitPassword} />
+          </Card>
+          <Card className="h-fit p-5">
+            <h2 className="mb-4 text-[15px] font-semibold">הגדרות</h2>
+            <AssignmentSettings id={id} dueAt={toLocalInput(assignment.dueAt)} allowLate={assignment.allowLate} maxAttempts={assignment.maxAttempts} />
+            <p className="mt-4 text-xs text-ink-3">נפתח {formatDateTime(assignment.opensAt)}</p>
+          </Card>
+        </div>
       </div>
     </>
   );

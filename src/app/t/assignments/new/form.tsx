@@ -21,6 +21,7 @@ export function AssignForm({
   const [examId, setExamId] = useState(exams.find((e) => e.id === defaultExamId)?.id ?? exams[0].id);
   const [classId, setClassId] = useState(classes.find((c) => c.id === defaultClassroomId)?.id ?? classes[0].id);
   const [target, setTarget] = useState<"class" | "students">("class");
+  const [where, setWhere] = useState<"anywhere" | "classroom">("anywhere");
   const exam = exams.find((e) => e.id === examId);
   const cls = classes.find((c) => c.id === classId)!;
   return (
@@ -29,7 +30,7 @@ export function AssignForm({
         <Select id="examId" name="examId" value={examId} onChange={(e) => setExamId(e.target.value)}>
           {exams.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.title} ({e.mode === "SIMULATION" ? "סימולציה" : "תרגול"})
+              {e.title} ({e.mode === "SIMULATION" ? "מבחן" : "תרגול"})
             </option>
           ))}
         </Select>
@@ -43,6 +44,33 @@ export function AssignForm({
           ))}
         </Select>
       </Field>
+      <fieldset className="space-y-2">
+        <legend className="mb-1.5 text-sm font-medium">איפה עושים את המבחן?</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["anywhere", "בכל מקום", "בבית או בכיתה, מכל מחשב או טלפון."],
+              ["classroom", "בכיתה, במחשב נעול", "רק בתוכנה Safe Exam Browser, בלי גישה לאתרים אחרים. מתאים למבחן עם משגיח/ה."],
+            ] as const
+          ).map(([v, title, body]) => (
+            <label key={v} className={cn("flex cursor-pointer gap-3 rounded-xl border p-3", where === v ? "border-brand bg-brand-soft/40" : "border-line hover:border-line-strong")}>
+              <input type="radio" name="where" className="mt-1 accent-brand" checked={where === v} onChange={() => setWhere(v)} />
+              <span>
+                <span className="block font-medium">{title}</span>
+                <span className="block text-sm text-ink-2">{body}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {where === "classroom" && (
+          <>
+            <input type="hidden" name="requireSeb" value="on" />
+            <Field label="סיסמת יציאה למשגיח/ה (לא חובה)" htmlFor="sebQuitPassword" hint="ריק = המערכת תבחר סיסמה בת 6 ספרות. תופיע בעמוד המשימה.">
+              <Input id="sebQuitPassword" name="sebQuitPassword" dir="ltr" inputMode="numeric" autoComplete="off" className="max-w-48" />
+            </Field>
+          </>
+        )}
+      </fieldset>
       <Field label="עד מתי להגיש? (לא חובה)" htmlFor="dueAt" hint="אפשר להשאיר ריק">
         <Input id="dueAt" name="dueAt" type="datetime-local" dir="ltr" />
       </Field>
@@ -85,7 +113,7 @@ export function AssignForm({
         </div>
       </details>
       <FormMessage state={state} />
-      <SubmitButton size="lg" pendingText="שולח…">הקצאה</SubmitButton>
+      <SubmitButton size="lg" pendingText="שולח…">שליחה לכיתה</SubmitButton>
     </form>
   );
 }

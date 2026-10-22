@@ -31,7 +31,7 @@ export function RubricEditor({ id, initial }: { id: string; initial: { name: str
         <Card key={i} className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
             <Field label="קריטריון" htmlFor={`cl-${i}`}>
-              <Input id={`cl-${i}`} lang="en" dir="ltr" value={c.label} onChange={(e) => setC(i, { label: e.target.value })} />
+              <Input id={`cl-${i}`} dir="auto" value={c.label} onChange={(e) => setC(i, { label: e.target.value })} />
             </Field>
             <Field label="משקל (%)" htmlFor={`cw-${i}`}>
               <Input id={`cw-${i}`} type="number" min={0} max={100} value={c.weight} onChange={(e) => setC(i, { weight: Number(e.target.value) })} />
@@ -43,7 +43,7 @@ export function RubricEditor({ id, initial }: { id: string; initial: { name: str
             </div>
           </div>
           <Field label="תיאור" htmlFor={`cd-${i}`}>
-            <Input id={`cd-${i}`} lang="en" dir="ltr" value={c.description} onChange={(e) => setC(i, { description: e.target.value })} />
+            <Input id={`cd-${i}`} dir="auto" value={c.description} onChange={(e) => setC(i, { description: e.target.value })} />
           </Field>
           <div className="space-y-2">
             <p className="text-sm font-medium">רמות</p>
@@ -52,7 +52,7 @@ export function RubricEditor({ id, initial }: { id: string; initial: { name: str
                 <Input aria-label="שם רמה" value={b.label} onChange={(e) => setC(i, { bands: c.bands.map((x, m) => (m === k ? { ...x, label: e.target.value } : x)) })} />
                 <Input aria-label="מינימום" type="number" min={0} max={100} value={b.min} onChange={(e) => setC(i, { bands: c.bands.map((x, m) => (m === k ? { ...x, min: Number(e.target.value) } : x)) })} />
                 <Input aria-label="מקסימום" type="number" min={0} max={100} value={b.max} onChange={(e) => setC(i, { bands: c.bands.map((x, m) => (m === k ? { ...x, max: Number(e.target.value) } : x)) })} />
-                <Input aria-label="תיאור רמה" lang="en" dir="ltr" value={b.descriptor} onChange={(e) => setC(i, { bands: c.bands.map((x, m) => (m === k ? { ...x, descriptor: e.target.value } : x)) })} />
+                <Input aria-label="תיאור רמה" dir="auto" value={b.descriptor} onChange={(e) => setC(i, { bands: c.bands.map((x, m) => (m === k ? { ...x, descriptor: e.target.value } : x)) })} />
                 <Button variant="ghost" size="sm" aria-label="מחיקת רמה" onClick={() => setC(i, { bands: c.bands.filter((_, m) => m !== k) })}>
                   <Trash2 className="size-4" />
                 </Button>

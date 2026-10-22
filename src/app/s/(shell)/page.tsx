@@ -11,7 +11,7 @@ import { MODE_LABELS } from "@/lib/exam-types";
 import { JoinAnotherClass } from "./join-another";
 import { Alert } from "@/components/ui/alert";
 
-export const metadata = { title: "המשימות שלי" };
+export const metadata = { title: "המבחנים שלי" };
 
 export default async function StudentHome({ searchParams }: { searchParams: Promise<{ joined?: string }> }) {
   const { joined } = await searchParams;
@@ -43,7 +43,7 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">שלום, {user.name.split(" ")[0]}</h1>
-        <p className="mt-1 text-ink-2">{open.length ? `יש לך ${open.length} משימות פתוחות.` : "אין משימות פתוחות כרגע."}</p>
+        <p className="mt-1 text-ink-2">{open.length === 1 ? "יש לך מבחן אחד לעשות." : open.length ? `יש לך ${open.length} מבחנים לעשות.` : "אין מבחנים פתוחים כרגע."}</p>
       </div>
 
       {joined && (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertCircle, BookOpen, ChevronLeft, ClipboardCheck, Inbox, ListChecks, Plus, Users } from "lucide-react";
+import { AlertCircle, ChevronLeft, ClipboardCheck, ListChecks, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, CardHeader, PageHeader } from "@/components/ui/card";
@@ -11,28 +11,14 @@ import { snapshotOf } from "@/lib/attempts";
 import { GettingStarted, type StartStep } from "@/components/help/getting-started";
 import { HelpButton } from "@/components/help/help-button";
 
-export const metadata = { title: "לוח בקרה" };
-
-function Stat({ label, value, icon: Icon, href }: { label: string; value: number; icon: typeof Users; href: string }) {
-  return (
-    <Link href={href} className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-[var(--shadow-card)] transition-colors hover:border-line-strong">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-ink-2">{label}</p>
-        <Icon className="size-4 text-ink-3" aria-hidden />
-      </div>
-      <p className="mt-2 text-[28px] font-semibold leading-none tracking-tight tabular">{value}</p>
-    </Link>
-  );
-}
+export const metadata = { title: "ראשי" };
 
 export default async function TeacherDashboard() {
   const user = await requireUser(["TEACHER"]);
   const mine = { classroom: { teacherId: user.id } };
   const now = new Date();
-  const [students, assignments, submissions, pending, pendingList, dueSoon, publishedAttempts, classes] = await Promise.all([
-    db.user.count({ where: { role: "STUDENT", enrollments: { some: { classroom: { teacherId: user.id, archived: false } } } } }),
+  const [assignments, pending, pendingList, dueSoon, publishedAttempts, classes] = await Promise.all([
     db.assignment.count({ where: mine }),
-    db.attempt.count({ where: { assignment: mine, status: { not: "IN_PROGRESS" } } }),
     db.attempt.count({ where: { assignment: mine, status: "SUBMITTED", gradingStatus: { not: "PUBLISHED" } } }),
     db.attempt.findMany({
       where: { assignment: mine, status: "SUBMITTED", gradingStatus: { not: "PUBLISHED" } },
@@ -71,8 +57,8 @@ export default async function TeacherDashboard() {
   const steps: StartStep[] = [
     { title: "יצירת כיתה", body: "נותנים שם לכיתה — למשל י״א 3.", href: "/t/classes", cta: "יצירת כיתה", done: classes > 0 },
     { title: "צירוף תלמידים", body: "שולחים לקבוצת הכיתה קישור הצטרפות. כל תלמיד נכנס עם Google.", href: firstClass ? `/t/classes/${firstClass.id}` : "/t/classes", cta: "לקישור ההצטרפות", done: enrolled > 0 },
-    { title: "יצירת מבחן ופרסום", body: "מתחילים מתבנית COBE מוכנה ומשנים מה שרוצים.", href: "/t/exams/new", cta: "מבחן חדש", done: publishedExams > 0 },
-    { title: "שליחת המבחן לכיתה", body: "בוחרים מבחן, כיתה ותאריך הגשה.", href: "/t/assignments/new", cta: "הקצאה לכיתה", done: assignments > 0 },
+    { title: "יצירת מבחן ופרסום", body: "כותבים שאלות על החומר שנלמד, ומאשרים את ההקראה של כל שאלה.", href: "/t/exams/new", cta: "מבחן חדש", done: publishedExams > 0 },
+    { title: "שליחת המבחן לכיתה", body: "בוחרים מבחן, כיתה ותאריך הגשה.", href: "/t/assignments/new", cta: "שליחה לכיתה", done: assignments > 0 },
     { title: "בדיקת הגשה ראשונה", body: "מאזינים, בוחרים רמה בכל קריטריון ומפרסמים משוב.", href: "/t/review", cta: "לבדיקת הגשות", done: gradedCount > 0 },
   ];
   const setupDone = steps.every((x) => x.done);
@@ -99,7 +85,7 @@ export default async function TeacherDashboard() {
     <>
       <PageHeader
         title={`שלום, ${user.name.split(" ")[0]}`}
-        description={pending ? `${pending} הגשות ממתינות לבדיקה.` : "אין הגשות שממתינות לבדיקה."}
+        description={pending === 1 ? "הגשה אחת ממתינה לבדיקה." : pending ? `${pending} הגשות ממתינות לבדיקה.` : "אין הגשות שממתינות לבדיקה."}
         actions={
           <>
             <HelpButton topic="dashboard" />
@@ -107,7 +93,7 @@ export default async function TeacherDashboard() {
               <Plus className="size-4" /> מבחן חדש
             </LinkButton>
             <LinkButton href="/t/assignments/new" size="sm">
-              <ListChecks className="size-4" /> הקצאה
+              <ListChecks className="size-4" /> שליחה לכיתה
             </LinkButton>
           </>
         }
@@ -119,14 +105,7 @@ export default async function TeacherDashboard() {
       )}
       {assignments > 0 && (
         <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="תלמידים" value={students} icon={Users} href="/t/classes" />
-        <Stat label="מבחנים שהוקצו" value={assignments} icon={BookOpen} href="/t/assignments" />
-        <Stat label="הגשות שהתקבלו" value={submissions} icon={Inbox} href="/t/review?f=published" />
-        <Stat label="ממתינות לבדיקה" value={pending} icon={ClipboardCheck} href="/t/review" />
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title="ממתינות לבדיקה" actions={pending > 0 ? <Link href="/t/review" className="text-sm text-brand hover:underline">לכל ההגשות</Link> : undefined} />
           {pendingList.length === 0 ? (
@@ -151,9 +130,9 @@ export default async function TeacherDashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="תלמידים שלא הגישו" description="משימות פתוחות, ומשימות שמועד ההגשה שלהן עבר בשבוע האחרון" />
+          <CardHeader title="תלמידים שלא הגישו" description="מבחנים פתוחים, ומבחנים שמועד ההגשה שלהם עבר בשבוע האחרון" />
           {missing.length === 0 ? (
-            <EmptyState icon={AlertCircle} title="אין חוסרים" body="כל התלמידים הגישו את המשימות הקרובות." />
+            <EmptyState icon={AlertCircle} title="אין חוסרים" body="כל התלמידים הגישו." />
           ) : (
             <ul className="divide-y divide-line">
               {missing.map(({ a, missing: m, total }) => (
@@ -178,16 +157,15 @@ export default async function TeacherDashboard() {
         </Card>
       </div>
 
+      {trend.length >= 2 && (
       <Card className="mt-6">
-        <CardHeader title="ממוצע ציונים לפי משימה" description="ממוצע הציונים שפורסמו, לפי סדר כרונולוגי" />
+        <CardHeader title="ממוצע ציונים לפי מבחן" description="ממוצע הציונים שפורסמו, לפי סדר כרונולוגי" />
         <div className="p-5">
-          {trend.length < 2 ? (
-            <p className="py-6 text-center text-sm text-ink-3">הגרף יופיע אחרי שיפורסמו ציונים בשתי משימות לפחות.</p>
-          ) : (
+          {(
             <>
               <ScoreTrend points={trend} />
               <table className="mt-4 w-full text-sm">
-                <caption className="sr-only">ממוצע ציונים לפי משימה</caption>
+                <caption className="sr-only">ממוצע ציונים לפי מבחן</caption>
                 <tbody className="divide-y divide-line">
                   {trend.slice(-5).reverse().map((t, i) => (
                     <tr key={i}>
@@ -202,6 +180,7 @@ export default async function TeacherDashboard() {
           )}
         </div>
       </Card>
+      )}
         </>
       )}
     </>

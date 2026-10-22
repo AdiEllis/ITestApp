@@ -5,6 +5,7 @@ import { examHasAttempts, getOwnExam } from "@/lib/authz";
 import { loadExam } from "@/lib/exams";
 import { toBuilderState } from "@/lib/builder-state";
 import { ExamBuilder } from "./builder";
+import { ttsProvider } from "@/lib/tts";
 
 export const metadata = { title: "עריכת מבחן" };
 
@@ -32,6 +33,7 @@ export default async function ExamPage({ params, searchParams }: { params: Promi
       sourceFiles={sources.map((s) => ({ id: s.media.id, name: s.media.originalName, mimeType: s.media.mimeType, sizeBytes: s.media.sizeBytes }))}
       sharedEntry={shared ? { id: shared.id, sharedAt: shared.sharedAt!.toISOString() } : null}
       justCopied={(await searchParams).copied === "1"}
+      ttsEnabled={!!ttsProvider()}
     />
   );
 }

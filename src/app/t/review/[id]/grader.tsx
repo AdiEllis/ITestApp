@@ -136,7 +136,7 @@ export function Grader(props: {
               <Badge tone="warn">ממתין לבדיקה</Badge>
             )}
             {attempt.late && <Badge tone="danger">הוגש באיחור</Badge>}
-            {snapshot.mode === "SIMULATION" && <Badge tone="brand">סימולציה</Badge>}
+            {snapshot.mode === "SIMULATION" && <Badge tone="brand">מבחן</Badge>}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export function Grader(props: {
                   {graded ? <CheckCircle2 className="size-3.5" /> : i + 1}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span lang="en" dir="ltr" className="block truncate text-start text-sm font-medium">
+                  <span dir="auto" className="block truncate text-start text-sm font-medium">
                     {s.title.replace(/^Part\s+/i, "")} · {qq?.title || `Q${i + 1}`}
                   </span>
                   <span className="block text-xs text-ink-3">
@@ -215,7 +215,7 @@ export function Grader(props: {
                     {q.prompt || q.title}
                   </En>
                   {q.subQuestions.length > 0 && (
-                    <ol lang="en" dir="ltr" className="list-decimal space-y-1 ps-6 text-left text-[15px] text-ink-2">
+                    <ol dir="auto" className="list-decimal space-y-1 ps-6 text-start text-[15px] text-ink-2">
                       {q.subQuestions.map((s, i) => (
                         <li key={i}>{s}</li>
                       ))}
@@ -260,7 +260,7 @@ export function Grader(props: {
                         <div key={c.key} className="space-y-2">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
                             <p className="text-sm font-medium">
-                              <span lang="en">{c.label}</span> <span className="text-ink-3">· {c.weight}%</span>
+                              <span dir="auto">{c.label}</span> <span className="text-ink-3">· {c.weight}%</span>
                             </p>
                             <label className="flex items-center gap-2 text-sm">
                               <span className="sr-only">ציון {c.label}</span>

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { En } from "@/components/ui/en";
 import { MediaPlayer } from "@/components/media/media-player";
-import { LEVEL_LABELS, MODE_LABELS } from "@/lib/exam-types";
+import { hasRecordLimit, MODE_LABELS } from "@/lib/exam-types";
 import { formatDate, formatDuration } from "@/lib/format";
 import { db } from "@/lib/db";
 import { LibraryActions } from "./actions";
@@ -42,10 +42,10 @@ export default async function LibraryEntryPage({ params }: { params: Promise<{ i
       />
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Badge tone={exam.mode === "SIMULATION" ? "brand" : "neutral"}>{MODE_LABELS[exam.mode]}</Badge>
-        <Badge>{LEVEL_LABELS[exam.level]}</Badge>
+        {exam.subject && <Badge>{exam.subject}</Badge>}
         {exam.topics.map((t) => (
           <Badge key={t}>
-            <span lang="en">{t}</span>
+            <span dir="auto">{t}</span>
           </Badge>
         ))}
       </div>
@@ -73,14 +73,14 @@ export default async function LibraryEntryPage({ params }: { params: Promise<{ i
                     {q.prompt}
                   </En>
                   {q.subQuestions.length > 0 && (
-                    <ul lang="en" dir="ltr" className="mt-1 list-disc ps-5 text-left text-sm text-ink-2">
+                    <ul dir="auto" className="mt-1 list-disc ps-5 text-start text-sm text-ink-2">
                       {q.subQuestions.map((x, i) => (
                         <li key={i}>{x}</li>
                       ))}
                     </ul>
                   )}
                   <p className="mt-2 text-xs text-ink-3">
-                    {q.points} נק׳ · הקלטה עד {formatDuration(q.maxRecordSec)}
+                    {q.points} נק׳{hasRecordLimit(q.maxRecordSec) ? ` · הקלטה עד ${formatDuration(q.maxRecordSec)}` : ""}
                     {q.prepTimeSec ? ` · הכנה ${q.prepTimeSec} שנ׳` : ""}
                     {q.audio ? " · שמע" : ""}
                     {q.video ? " · וידאו" : ""}

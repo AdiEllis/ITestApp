@@ -9,9 +9,13 @@ import { requireUser } from "@/lib/auth";
 import { AppError, examHasAttempts, getEditableExam, getOwnExam, getViewableExam } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { cobeSimulationTemplate, COBE_DEFAULTS } from "@/lib/cobe";
-import { copyExam, deleteMediaIfUnreferenced, loadExam, publishProblems } from "@/lib/exams";
-import { examSettingsSchema } from "@/lib/exam-types";
+import { COBE_RUBRIC_NAME, GENERAL_RUBRIC_NAME } from "@/lib/default-rubrics";
+import { copyExam, deleteMediaIfUnreferenced, loadExam, newStorageKey, publishProblems } from "@/lib/exams";
+import { examSettingsSchema, OPEN_RECORD_SEC, spokenText } from "@/lib/exam-types";
 import { mediaCategory } from "@/lib/files";
+import { storage } from "@/lib/storage";
+import { rateLimit } from "@/lib/rate-limit";
+import { synthesize, ttsProvider, TTS_MAX_CHARS } from "@/lib/tts";
 import { toBuilderState, type BuilderExam, type MediaMeta } from "@/lib/builder-state";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; problems?: string[] };
@@ -23,10 +27,15 @@ function fail(e: unknown): ActionResult {
 }
 
 const levelEnum = z.enum(["FOUR_POINTS", "FIVE_POINTS", "FOUR_AND_FIVE", "OTHER"]);
+const subjectField = z.string().trim().max(60).nullish().transform((v) => v || null);
 const modeEnum = z.enum(["PRACTICE", "SIMULATION"]);
 
-async function systemRubricId() {
-  const r = await db.rubric.findFirst({ where: { ownerId: null }, orderBy: { createdAt: "asc" } });
+/** The default system rubric: the COBE rubric for the English template, the general oral rubric otherwise. */
+async function systemRubricId(kind: "general" | "cobe" = "general") {
+  const name = kind === "cobe" ? COBE_RUBRIC_NAME : GENERAL_RUBRIC_NAME;
+  const r =
+    (await db.rubric.findFirst({ where: { ownerId: null, name } })) ??
+    (await db.rubric.findFirst({ where: { ownerId: null }, orderBy: { createdAt: "asc" } }));
   return r?.id ?? null;
 }
 
@@ -34,7 +43,7 @@ async function systemRubricId() {
 
 const createSchema = z.object({
   title: z.string().trim().min(1, "יש להזין שם למבחן").max(140),
-  level: levelEnum,
+  subject: subjectField,
   mode: modeEnum,
   start: z.enum(["blank", "cobe"]),
 });
@@ -46,30 +55,34 @@ export async function createExamAction(_: unknown, form: FormData): Promise<Acti
   const d = parsed.data;
   const simulation = d.mode === "SIMULATION";
   const settings = examSettingsSchema.parse({
-    totalTimeLimitSec: simulation ? COBE_DEFAULTS.totalTimeLimitSec : null,
+    // Only the English template has time limits; in other exams the proctor decides when to stop.
+    totalTimeLimitSec: simulation && d.start === "cobe" ? COBE_DEFAULTS.totalTimeLimitSec : null,
     allowBackNavigation: !simulation,
     allowReviewOwnRecording: true,
+    // The English template shows the questions as text, as in the original COBE practice.
+    deviceVoiceFallback: d.start === "cobe",
   });
   const template =
     d.start === "cobe"
       ? cobeSimulationTemplate()
       : [
           {
-            title: "Practice",
+            title: "שאלות",
             instructions: "",
             kind: "GENERAL" as const,
             choiceMode: "ALL" as const,
-            questions: [{ title: "", prompt: "", subQuestions: [] as string[], prepTimeSec: 30, maxRecordSec: 120, points: 25, allowReRecord: true, maxRecordings: 3 as number | null }],
+            questions: [{ title: "", prompt: "", subQuestions: [] as string[], prepTimeSec: 0, maxRecordSec: OPEN_RECORD_SEC, points: 25, allowReRecord: true, maxRecordings: null as number | null }],
           },
         ];
   const exam = await db.exam.create({
     data: {
       ownerId: user.id,
       title: d.title,
-      level: d.level,
+      subject: d.start === "cobe" ? "אנגלית" : d.subject,
+      level: d.start === "cobe" ? "FOUR_AND_FIVE" : "OTHER",
       mode: d.mode,
       settings,
-      rubricId: await systemRubricId(),
+      rubricId: await systemRubricId(d.start === "cobe" ? "cobe" : "general"),
       sections: {
         create: template.map((s, i) => ({
           order: i,
@@ -100,7 +113,7 @@ export async function createExamAction(_: unknown, form: FormData): Promise<Acti
 
 const importSchema = z.object({
   title: z.string().trim().min(1, "יש להזין שם למבחן").max(140),
-  level: levelEnum,
+  subject: subjectField,
   mode: modeEnum,
   mediaIds: z.array(z.string()).min(1, "יש להעלות לפחות קובץ אחד").max(40),
 });
@@ -117,11 +130,12 @@ export async function createImportedExamAction(input: z.infer<typeof importSchem
       data: {
         ownerId: user.id,
         title: d.title,
-        level: d.level,
+        subject: d.subject,
+        level: "OTHER",
         mode: d.mode,
         rubricId: await systemRubricId(),
-        settings: examSettingsSchema.parse({ totalTimeLimitSec: simulation ? COBE_DEFAULTS.totalTimeLimitSec : null, allowBackNavigation: !simulation }),
-        sections: { create: [{ order: 0, title: "Part 1", kind: "GENERAL", choiceMode: "ALL" }] },
+        settings: examSettingsSchema.parse({ totalTimeLimitSec: null, allowBackNavigation: !simulation }),
+        sections: { create: [{ order: 0, title: "חלק 1", kind: "GENERAL", choiceMode: "ALL" }] },
         sourceFiles: { create: media.map((m) => ({ mediaId: m.id, label: m.originalName })) },
       },
     });
@@ -141,7 +155,11 @@ const questionInput = z.object({
   prompt: z.string().max(4000),
   subQuestions: z.array(z.string().max(1000)).max(12),
   instructions: z.string().max(2000).nullable(),
+  readText: z.string().max(TTS_MAX_CHARS).nullable().default(null),
   audioId: nullableId,
+  audioSource: z.enum(["TTS", "TEACHER"]).nullable().default(null),
+  audioText: z.string().max(20000).nullable().default(null),
+  audioApproved: z.boolean().default(false),
   videoId: nullableId,
   imageId: nullableId,
   videoUrl: z.string().trim().max(500).nullable(),
@@ -166,6 +184,7 @@ const sectionInput = z.object({
 const saveSchema = z.object({
   title: z.string().trim().min(1, "יש להזין שם למבחן").max(140),
   description: z.string().max(4000).nullable(),
+  subject: z.string().trim().max(60).nullable().default(null),
   level: levelEnum,
   mode: modeEnum,
   topics: z.array(z.string().trim().min(1).max(40)).max(10),
@@ -215,6 +234,7 @@ export async function saveExamAction(
     const current = await db.examSection.findMany({ where: { examId }, include: { questions: true } });
     const sectionIds = new Set(current.map((s) => s.id));
     const questionIds = new Set(current.flatMap((s) => s.questions.map((q) => q.id)));
+    const previousQuestion = new Map(current.flatMap((s) => s.questions.map((q) => [q.id, q] as const)));
     const previousMedia = current.flatMap((s) => [s.mediaId, ...s.questions.flatMap((q) => [q.audioId, q.videoId, q.imageId])]);
     for (const s of d.sections) {
       if (s.id && !sectionIds.has(s.id)) delete s.id; // unknown id → treat as new
@@ -231,6 +251,7 @@ export async function saveExamAction(
         data: {
           title: d.title,
           description: d.description || null,
+          subject: d.subject || null,
           level: d.level,
           mode: d.mode,
           topics: [...new Set(d.topics)],
@@ -259,7 +280,20 @@ export async function saveExamAction(
           : await tx.examSection.create({ data: { ...sectionData, examId } });
         for (const [j, q] of s.questions.entries()) {
           const { id: qid, ...rest } = q;
-          const data = { ...rest, videoUrl: q.videoUrl || null, order: j, sectionId: section.id, title: q.title || null, instructions: q.instructions || null, subQuestions: q.subQuestions.map((x) => x.trim()).filter(Boolean) };
+          const subQuestions = q.subQuestions.map((x) => x.trim()).filter(Boolean);
+          const readText = q.readText?.trim() || null;
+          // Read-aloud audio remembers the text it was made for, so a later change to the question is detected.
+          // (The builder clears the teacher's approval whenever the audio file changes.)
+          const prev = qid ? previousQuestion.get(qid) : undefined;
+          const audioChanged = !prev || prev.audioId !== q.audioId;
+          const audio = !q.audioId
+            ? { audioSource: null, audioText: null, audioApproved: false }
+            : {
+                audioSource: q.audioSource ?? prev?.audioSource ?? "TEACHER",
+                audioText: q.audioText ?? (audioChanged ? spokenText({ prompt: q.prompt, subQuestions, readText }) : prev!.audioText),
+                audioApproved: q.audioApproved,
+              };
+          const data = { ...rest, ...audio, readText, videoUrl: q.videoUrl || null, order: j, sectionId: section.id, title: q.title || null, instructions: q.instructions || null, subQuestions };
           if (qid) await tx.question.update({ where: { id: qid }, data });
           else await tx.question.create({ data });
         }
@@ -277,6 +311,44 @@ export async function saveExamAction(
     await deleteMediaIfUnreferenced(previousMedia);
     const fresh = await loadExam(examId);
     return { ok: true, state: toBuilderState(fresh!) };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// ---------------- Read-aloud ----------------
+
+/**
+ * Creates the read-aloud audio for a question with the automatic voice. The file is stored like a
+ * teacher recording; the builder attaches it to the question, and the teacher must listen and approve it.
+ */
+export async function generateSpeechAction(
+  examId: string,
+  text: string,
+): Promise<ActionResult & { mediaId?: string; meta?: MediaMeta[string] }> {
+  try {
+    const user = await requireUser(["TEACHER"]);
+    await getEditableExam(user, examId);
+    const clean = text.trim();
+    if (!clean) throw new AppError(400, "אין טקסט להקראה. כתבו קודם את השאלה.");
+    if (clean.length > TTS_MAX_CHARS) throw new AppError(400, `הטקסט ארוך מדי להקראה אוטומטית (עד ${TTS_MAX_CHARS} תווים)`);
+    if (!ttsProvider()) throw new AppError(400, "הקראה אוטומטית לא הוגדרה במערכת. אפשר להקליט את השאלה בקול.");
+    if (!(await rateLimit(`tts:${user.id}`, 200, 3600))) throw new AppError(429, "יותר מדי בקשות הקראה. נסו שוב בעוד כמה דקות.");
+    let result;
+    try {
+      result = await synthesize(clean);
+    } catch (e) {
+      console.error("[tts]", e);
+      throw new AppError(502, "שירות ההקראה לא הגיב. נסו שוב בעוד רגע, או הקליטו את השאלה בקול.");
+    }
+    const key = newStorageKey("QUESTION_AUDIO", result.mimeType);
+    await storage().put(key, result.audio, result.mimeType);
+    const name = "הקראה אוטומטית";
+    const media = await db.mediaFile.create({
+      data: { ownerId: user.id, kind: "QUESTION_AUDIO", status: "READY", storageKey: key, mimeType: result.mimeType, sizeBytes: result.audio.length, originalName: name },
+    });
+    await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length });
+    return { ok: true, mediaId: media.id, meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length } };
   } catch (e) {
     return fail(e);
   }

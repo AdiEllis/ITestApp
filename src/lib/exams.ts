@@ -3,7 +3,7 @@ import { db } from "./db";
 import { randomToken } from "./crypto";
 import { extensionFor } from "./files";
 import { storage } from "./storage";
-import { parseSettings, rubricCriteriaSchema, type ExamSnapshot } from "./exam-types";
+import { audioMatchesText, parseSettings, rubricCriteriaSchema, spokenText, type ExamSnapshot } from "./exam-types";
 import { parseVideo } from "./video";
 
 export function newStorageKey(kind: string, mimeType: string) {
@@ -40,6 +40,7 @@ export function buildSnapshot(exam: ExamWithContent): ExamSnapshot {
     examId: exam.id,
     title: exam.title,
     description: exam.description,
+    subject: exam.subject,
     mode: exam.mode,
     level: exam.level,
     settings: parseSettings(exam.settings),
@@ -61,6 +62,7 @@ export function buildSnapshot(exam: ExamWithContent): ExamSnapshot {
         prompt: q.prompt,
         subQuestions: q.subQuestions,
         instructions: q.instructions,
+        readText: q.readText,
         audioId: track(q.audio),
         videoId: track(q.video),
         imageId: track(q.image),
@@ -79,6 +81,7 @@ export function buildSnapshot(exam: ExamWithContent): ExamSnapshot {
 /** Returns a list of human-readable (Hebrew) problems that prevent publishing. */
 export function publishProblems(exam: ExamWithContent): string[] {
   const problems: string[] = [];
+  const settings = parseSettings(exam.settings);
   if (!exam.title.trim()) problems.push("חסר שם למבחן");
   if (exam.sections.length === 0) problems.push("המבחן חייב לכלול לפחות חלק אחד");
   exam.sections.forEach((s, i) => {
@@ -90,6 +93,11 @@ export function publishProblems(exam: ExamWithContent): string[] {
       if (!q.prompt.trim() && !q.audioId && !q.videoId && !q.videoUrl && q.subQuestions.length === 0)
         problems.push(`שאלה ${j + 1} ב${name} ריקה — יש להוסיף טקסט או מדיה`);
       if (q.maxRecordSec < 10) problems.push(`זמן ההקלטה בשאלה ${j + 1} ב${name} קצר מדי`);
+      // Read-aloud: students must hear exactly what the teacher checked.
+      const hasText = !!spokenText(q);
+      if (q.audioId && !audioMatchesText(q)) problems.push(`השאלה ${j + 1} ב${name} השתנתה אחרי שההקראה נוצרה. צרו או הקליטו את ההקראה מחדש`);
+      else if (q.audioId && !q.audioApproved) problems.push(`יש להאזין להקראה של שאלה ${j + 1} ב${name} ולאשר שהיא נכונה`);
+      else if (!q.audioId && hasText && !settings.deviceVoiceFallback) problems.push(`לשאלה ${j + 1} ב${name} אין עדיין הקראה. צרו הקראה אוטומטית או הקליטו את השאלה`);
       if (q.points <= 0) problems.push(`לשאלה ${j + 1} ב${name} יש להגדיר ניקוד חיובי`);
     });
     if (s.videoUrl && !parseVideo(s.videoUrl)) problems.push(`קישור הסרטון ב${name} אינו נתמך (YouTube, Vimeo, Google Drive או קובץ mp4)`);
@@ -153,6 +161,7 @@ export async function copyExam(
           ownerId,
           title: opts.title ?? src.title,
           description: src.description,
+          subject: src.subject,
           level: src.level,
           mode: src.mode,
           topics: src.topics,
@@ -188,6 +197,10 @@ export async function copyExam(
               prompt: q.prompt,
               subQuestions: q.subQuestions,
               instructions: q.instructions,
+              readText: q.readText,
+              audioSource: q.audioSource,
+              audioText: q.audioText,
+              audioApproved: q.audioApproved,
               audioId: await cloneMedia(tx, q.audio, ownerId, cache),
               videoId: await cloneMedia(tx, q.video, ownerId, cache),
               imageId: await cloneMedia(tx, q.image, ownerId, cache),

@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
+import { SubjectInput } from "@/components/ui/subject-input";
 import { ProgressBar } from "@/components/media/progress-bar";
 import { cn } from "@/components/ui/cn";
 
@@ -35,8 +36,8 @@ export function ImportWizard() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
-  const [level, setLevel] = useState("FOUR_AND_FIVE");
-  const [mode, setMode] = useState("SIMULATION");
+  const [subject, setSubject] = useState("");
+  const [mode, setMode] = useState("PRACTICE");
 
   function add(files: FileList | File[]) {
     const list = Array.from(files).map((f) => ({ key: Math.random().toString(36).slice(2), file: fixType(f), progress: 0 }));
@@ -59,7 +60,7 @@ export function ImportWizard() {
   async function create() {
     setError(null);
     setCreating(true);
-    const r = await createImportedExamAction({ title, level: level as "FOUR_AND_FIVE", mode: mode as "SIMULATION", mediaIds: ready.map((i) => i.mediaId!) });
+    const r = await createImportedExamAction({ title, subject: subject.trim() || null, mode: mode as "SIMULATION", mediaIds: ready.map((i) => i.mediaId!) });
     if (!r.ok || !r.examId) {
       setError(r.ok ? "שגיאה" : r.error);
       setCreating(false);
@@ -117,18 +118,13 @@ export function ImportWizard() {
           <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="רמה" htmlFor="level">
-            <Select id="level" value={level} onChange={(e) => setLevel(e.target.value)}>
-              <option value="FOUR_AND_FIVE">4 ו־5 יח״ל</option>
-              <option value="FIVE_POINTS">5 יח״ל</option>
-              <option value="FOUR_POINTS">4 יח״ל</option>
-              <option value="OTHER">אחר</option>
-            </Select>
+          <Field label="מקצוע" htmlFor="subject">
+            <SubjectInput id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="לדוגמה: היסטוריה" />
           </Field>
           <Field label="מצב" htmlFor="mode">
             <Select id="mode" value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="SIMULATION">סימולציה</option>
               <option value="PRACTICE">תרגול</option>
+              <option value="SIMULATION">מבחן</option>
             </Select>
           </Field>
         </div>
