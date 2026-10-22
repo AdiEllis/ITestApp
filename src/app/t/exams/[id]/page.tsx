@@ -8,6 +8,8 @@ import { ExamBuilder } from "./builder";
 import { ttsProvider } from "@/lib/tts";
 
 export const metadata = { title: "עריכת מבחן" };
+// Server actions on this page include the automatic voice, which can take several seconds.
+export const maxDuration = 60;
 
 export default async function ExamPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ copied?: string }> }) {
   const user = await requireUser(["TEACHER"]);

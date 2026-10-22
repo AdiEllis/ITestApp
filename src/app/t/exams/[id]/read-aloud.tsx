@@ -68,8 +68,15 @@ export function ReadAloudPanel({
   async function generate() {
     setBusy(true);
     setError(null);
-    const r = await generateSpeechAction(examId, text);
-    setBusy(false);
+    let r: Awaited<ReturnType<typeof generateSpeechAction>>;
+    try {
+      r = await generateSpeechAction(examId, text);
+    } catch {
+      setError("ההקראה לא נוצרה: החיבור לשרת נכשל. נסו שוב, או הקליטו את השאלה בקול.");
+      return;
+    } finally {
+      setBusy(false);
+    }
     if (!r.ok || !r.mediaId) {
       setError(r.ok ? "ההקראה לא נוצרה" : r.error);
       return;

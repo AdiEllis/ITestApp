@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { audioMatchesText, detectLanguage, spokenText } from "@/lib/exam-types";
-import { synthesize } from "@/lib/tts";
+import { synthesize, type TtsError } from "@/lib/tts";
 import { sniff } from "@/lib/files";
 import { buildSebConfig, isInSeb, sebMarker, assertSebIfRequired } from "@/lib/seb";
 import { sha256 } from "@/lib/crypto";
@@ -64,5 +64,50 @@ describe("Safe Exam Browser", () => {
     expect(value("quitURL")).toEqual(["string", "https://school.example.org/seb/quit"]);
     // well-formed: every opened dict/array is closed
     for (const tag of ["dict", "array", "plist"]) expect(xml.split(`<${tag}`).length).toBe(xml.split(`</${tag}>`).length);
+  });
+});
+
+describe("Azure voice errors", () => {
+  const env = { ...process.env };
+  const withAzure = (region: string) => {
+    process.env.TTS_PROVIDER = "";
+    process.env.AZURE_SPEECH_KEY = " key ";
+    process.env.AZURE_SPEECH_REGION = region;
+  };
+  const reason = async () => synthesize("שלום").then(() => "ok", (e: TtsError) => e.reason);
+
+  it("a rejected key, a wrong region and a slow service each get their own reason", async () => {
+    const orig = globalThis.fetch;
+    try {
+      withAzure("North Europe");
+      let url = "";
+      globalThis.fetch = (async (u: string, init: RequestInit) => {
+        url = u;
+        expect((init.headers as Record<string, string>)["Ocp-Apim-Subscription-Key"]).toBe("key");
+        return new Response("Unauthorized", { status: 401 });
+      }) as typeof fetch;
+      expect(await reason()).toBe("key");
+      expect(url).toBe("https://northeurope.tts.speech.microsoft.com/cognitiveservices/v1");
+
+      globalThis.fetch = (async () => {
+        throw new TypeError("fetch failed", { cause: { code: "ENOTFOUND" } });
+      }) as typeof fetch;
+      expect(await reason()).toBe("region");
+
+      globalThis.fetch = (async () => {
+        throw new DOMException("timed out", "TimeoutError");
+      }) as typeof fetch;
+      expect(await reason()).toBe("timeout");
+
+      withAzure("north-europe!");
+      expect(await reason()).toBe("region");
+
+      withAzure("northeurope");
+      globalThis.fetch = (async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 })) as typeof fetch;
+      expect(await reason()).toBe("ok");
+    } finally {
+      globalThis.fetch = orig;
+      process.env = env;
+    }
   });
 });
