@@ -77,11 +77,11 @@ test("read-aloud must be approved; a classroom exam opens only in Safe Exam Brow
   await expect(t.getByText("המבחן פורסם")).toBeVisible();
 
   // Assign as a locked classroom exam with a chosen quit password.
-  await t.getByRole("link", { name: "הקצאה לכיתה" }).click();
+  await t.getByRole("link", { name: "שליחה לכיתה" }).click();
   await t.getByText("בכיתה, במחשב נעול").click();
   await t.locator("#sebQuitPassword").fill("4321");
   await shot(t, "21-assign-classroom");
-  await t.getByRole("button", { name: "הקצאה", exact: true }).click();
+  await t.getByRole("button", { name: "שליחה לכיתה", exact: true }).click();
   await expect(t).toHaveURL(/\/t\/assignments\/\w+$/);
   const assignmentId = t.url().split("/").pop()!;
   await expect(t.getByText("סיסמת יציאה למשגיח/ה:")).toBeVisible();

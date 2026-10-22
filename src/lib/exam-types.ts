@@ -121,6 +121,21 @@ export const SUBJECT_SUGGESTIONS = [
 ];
 
 /**
+ * Recording time for a question without a time limit. The proctor decides when to stop;
+ * this is only a safety cap so a forgotten recording doesn't run forever.
+ */
+export const OPEN_RECORD_SEC = 900;
+
+export function hasRecordLimit(maxRecordSec: number) {
+  return maxRecordSec < OPEN_RECORD_SEC;
+}
+
+/** Whether a question has any time or attempt limit (prep time, recording time or number of recordings). */
+export function hasQuestionLimits(q: { prepTimeSec: number; maxRecordSec: number; maxRecordings: number | null }) {
+  return q.prepTimeSec > 0 || hasRecordLimit(q.maxRecordSec) || q.maxRecordings != null;
+}
+
+/**
  * The text a question's read-aloud voice speaks: the teacher's reading text (for example with niqqud)
  * or, when there is none, the question and its follow-up questions.
  */

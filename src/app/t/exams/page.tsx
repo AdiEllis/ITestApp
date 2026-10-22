@@ -100,7 +100,7 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
                         {e.isDemo && <Badge tone="warn">הדגמה</Badge>}
                       </div>
                       <p className="mt-0.5 text-sm text-ink-3">
-                        {e.subject ? `${e.subject} · ` : ""}{e._count.sections} חלקים · {questions} שאלות · {e._count.assignments} הקצאות · עודכן {formatDate(e.updatedAt)}
+                        {e.subject ? `${e.subject} · ` : ""}{questions} שאלות{e._count.assignments ? ` · נשלח לכיתה` : ""} · עודכן {formatDate(e.updatedAt)}
                       </p>
                     </div>
                     <ChevronLeft className="size-4 shrink-0 text-ink-3" />

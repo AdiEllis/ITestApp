@@ -10,7 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import { MODE_LABELS } from "@/lib/exam-types";
 import { HelpButton } from "@/components/help/help-button";
 
-export const metadata = { title: "משימות" };
+export const metadata = { title: "מבחנים שנשלחו" };
 
 export default async function AssignmentsPage({ searchParams }: { searchParams: Promise<{ classroomId?: string }> }) {
   const user = await requireUser(["TEACHER"]);
@@ -30,13 +30,13 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
   return (
     <>
       <PageHeader
-        title="משימות"
+        title="מבחנים שנשלחו"
         description="מבחנים ותרגולים שהוקצו לכיתות, ומצב ההגשות."
         actions={
           <>
           <HelpButton topic="assignments" />
           <LinkButton href="/t/assignments/new">
-            <Plus className="size-4" /> הקצאה חדשה
+            <Plus className="size-4" /> שליחת מבחן לכיתה
           </LinkButton>
           </>
         }
@@ -55,7 +55,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams: 
       )}
       <Card>
         {assignments.length === 0 ? (
-          <EmptyState icon={ListChecks} title="אין משימות עדיין" body="פרסמו מבחן ואז הקצו אותו לכיתה או לתלמידים מסוימים." action={<LinkButton href="/t/assignments/new">הקצאה חדשה</LinkButton>} />
+          <EmptyState icon={ListChecks} title="עדיין לא נשלחו מבחנים" body="פרסמו מבחן ואז הקצו אותו לכיתה או לתלמידים מסוימים." action={<LinkButton href="/t/assignments/new">שליחת מבחן לכיתה</LinkButton>} />
         ) : (
           <ul className="divide-y divide-line">
             {assignments.map((a) => {

@@ -21,7 +21,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import type { ExamSnapshot, SnapshotQuestion, SnapshotSection } from "@/lib/exam-types";
-import { spokenText } from "@/lib/exam-types";
+import { hasRecordLimit, spokenText } from "@/lib/exam-types";
 import { speakWithDevice, stopDeviceVoice } from "@/lib/client/speech";
 import { useRecorder, MIC_ERROR_TEXT, type RecordingResult } from "@/lib/client/recorder";
 import { formatDuration } from "@/lib/format";
@@ -331,9 +331,11 @@ function StepView(props: {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium tracking-wide text-brand" dir="auto" style={{ textAlign: "start" }}>
-          {section.title}
-        </p>
+        {props.snapshot.sections.length > 1 && (
+          <p className="text-xs font-medium tracking-wide text-brand" dir="auto" style={{ textAlign: "start" }}>
+            {section.title}
+          </p>
+        )}
         {section.instructions && (
           <En className="mt-2 rounded-xl border border-line bg-surface px-4 py-3 text-[15px] leading-relaxed text-ink-2">{section.instructions}</En>
         )}
@@ -507,6 +509,7 @@ function RecordPanel(props: {
 
   // Preparation time (simulation): starts when the question is shown, persists across reloads.
   const needsPrep = q.prepTimeSec > 0 && !props.recorded && count === 0;
+  const limited = hasRecordLimit(q.maxRecordSec);
   const [prepLeft, setPrepLeft] = useState<number | null>(null);
   const prepDone = useRef(false);
   // Auto-start only when the student watched the countdown run out on this screen. If it ran out
@@ -579,14 +582,14 @@ function RecordPanel(props: {
           </div>
           <p className="font-mono text-4xl font-semibold tabular text-ink" dir="ltr">
             {formatDuration(recorder.elapsed)}
-            <span className="text-lg text-ink-3"> / {formatDuration(q.maxRecordSec)}</span>
+            {limited && <span className="text-lg text-ink-3"> / {formatDuration(q.maxRecordSec)}</span>}
           </p>
-          <ProgressBar value={recorder.elapsed / q.maxRecordSec} tone="rec" label="זמן הקלטה" />
+          {limited && <ProgressBar value={recorder.elapsed / q.maxRecordSec} tone="rec" label="זמן הקלטה" />}
           <LevelMeter level={recorder.level} bars={24} />
           <Button size="lg" onClick={stop} className="w-full max-w-xs bg-rec hover:bg-[#b82d31]">
             <Square className="size-4 fill-current" /> סיום הקלטה
           </Button>
-          <p className="text-xs text-ink-3">ענו על כל השאלות בהקלטה אחת רציפה. ההקלטה תיעצר אוטומטית בתום הזמן.</p>
+          <p className="text-xs text-ink-3">{limited ? "ענו על כל השאלות בהקלטה אחת רציפה. ההקלטה תיעצר אוטומטית בתום הזמן." : "כשסיימתם לענות, לחצו על סיום הקלטה."}</p>
         </div>
       ) : needsPrep && prepLeft !== null && prepLeft > 0 ? (
         <div className="flex flex-col items-center gap-3 text-center">
@@ -604,9 +607,11 @@ function RecordPanel(props: {
         </div>
       ) : count === 0 && !uploadStatus ? (
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-ink-2">
-            זמן הקלטה מרבי: <span className="font-medium tabular">{formatDuration(q.maxRecordSec)}</span>
-          </p>
+          {limited && (
+            <p className="text-sm text-ink-2">
+              זמן הקלטה מרבי: <span className="font-medium tabular">{formatDuration(q.maxRecordSec)}</span>
+            </p>
+          )}
           <Button size="lg" onClick={start} disabled={recorder.state === "preparing"} className="w-full max-w-xs">
             {recorder.state === "preparing" ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />} התחלת הקלטה
           </Button>
@@ -705,6 +710,7 @@ function ReviewScreen(props: {
   preview: boolean;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const multiPart = new Set(props.steps.map((s) => s.section.id)).size > 1;
   const missing = props.steps.filter((s) => !s.question || !props.answers[s.question.id]?.recordingCount).length;
   return (
     <div className="space-y-5">
@@ -724,7 +730,8 @@ function ReviewScreen(props: {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" dir="auto" style={{ textAlign: "start" }}>
-                  {s.section.title} · {s.question?.title || s.question?.prompt || "בחירת נושא"}
+                  {multiPart ? `${s.section.title} · ` : ""}
+                  {s.question?.title || s.question?.prompt || "בחירת נושא"}
                 </p>
                 <p className="text-xs text-ink-3">
                   {st?.state === "uploading" ? "מעלה…" : st?.state === "waiting-network" ? "ממתין לחיבור" : st?.state === "failed" ? "שגיאה בשמירה" : done ? `נשמר · ${formatDuration(a?.durationSec)}` : "לא נענתה"}

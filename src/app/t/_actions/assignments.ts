@@ -51,7 +51,7 @@ export async function createAssignmentAction(_: FormState, form: FormData): Prom
       sebQuitPassword: form.get("sebQuitPassword") || undefined,
     });
     const exam = await getOwnExam(user, d.examId);
-    if (exam.status !== "PUBLISHED") throw new AppError(400, "יש לפרסם את המבחן לפני הקצאה");
+    if (exam.status !== "PUBLISHED") throw new AppError(400, "יש לפרסם את המבחן לפני השליחה לכיתה");
     const classroom = await getOwnClassroom(user, d.classroomId);
     const opensAt = d.opensAt ? fromLocalInput(d.opensAt) : new Date();
     const dueAt = d.dueAt ? fromLocalInput(d.dueAt) : null;

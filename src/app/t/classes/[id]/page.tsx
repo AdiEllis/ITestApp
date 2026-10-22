@@ -61,7 +61,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
           <>
             <HelpButton topic="class" />
             <LinkButton href={`/t/assignments/new?classroomId=${id}`} variant="primary" size="sm">
-              <ListChecks className="size-4" /> הקצאת מבחן
+              <ListChecks className="size-4" /> שליחה לכיתה
             </LinkButton>
             <LinkButton href={`/t/assignments?classroomId=${id}`} variant="secondary" size="sm">
               משימות הכיתה

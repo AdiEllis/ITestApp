@@ -19,8 +19,8 @@ export function NewExamForm() {
     { v: "cobe" as const, icon: LayoutTemplate, title: "בגרות בעל פה באנגלית (COBE)", body: "שלושת החלקים של הבחינה באנגלית, עם שאלות לדוגמה שאפשר לשנות." },
   ];
   const modes = [
-    { v: "PRACTICE" as const, title: "תרגול", body: "בלי לחץ זמן. אפשר לחזור לשאלות ולהקליט שוב." },
-    { v: "SIMULATION" as const, title: "מבחן", body: "זמן הכנה לכל שאלה, הקלטה שמתחילה לבד וזמן כולל למבחן." },
+    { v: "PRACTICE" as const, title: "תרגול", body: "התלמידים יכולים לחזור לשאלות ולהקליט שוב." },
+    { v: "SIMULATION" as const, title: "מבחן", body: "שאלה אחרי שאלה, בלי לחזור אחורה. הבוחן/ת מחליט/ה מתי מסיימים." },
   ];
   return (
     <form action={action} className="space-y-6">

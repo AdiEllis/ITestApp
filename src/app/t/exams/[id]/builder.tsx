@@ -25,10 +25,9 @@ import {
 } from "lucide-react";
 import type { BuilderExam, BuilderQuestion, BuilderSection, MediaMeta } from "@/lib/builder-state";
 import { toSaveInput } from "@/lib/builder-state";
-import { MODE_LABELS, SECTION_KIND_LABELS } from "@/lib/exam-types";
+import { hasQuestionLimits, hasRecordLimit, MODE_LABELS, OPEN_RECORD_SEC, SECTION_KIND_LABELS } from "@/lib/exam-types";
 import { SubjectInput } from "@/components/ui/subject-input";
 import { ReadAloudPanel } from "./read-aloud";
-import { COBE_DEFAULTS } from "@/lib/cobe";
 import {
   addSourceFilesAction,
   duplicateExamAction,
@@ -56,7 +55,7 @@ type SaveState = "saved" | "dirty" | "saving" | "error";
 
 const uid = () => `k_${Math.random().toString(36).slice(2, 10)}`;
 
-function newQuestion(simulation: boolean): BuilderQuestion {
+function newQuestion(): BuilderQuestion {
   return {
     key: uid(),
     title: null,
@@ -72,10 +71,10 @@ function newQuestion(simulation: boolean): BuilderQuestion {
     imageId: null,
     videoUrl: null,
     maxMediaPlays: null,
-    prepTimeSec: simulation ? 30 : 0,
-    maxRecordSec: 120,
+    prepTimeSec: 0,
+    maxRecordSec: OPEN_RECORD_SEC,
     allowReRecord: true,
-    maxRecordings: simulation ? 3 : null,
+    maxRecordings: null,
     points: 25,
   };
 }
@@ -252,7 +251,7 @@ export function ExamBuilder({
             )}
             {status === "PUBLISHED" && (
               <LinkButton href={`/t/assignments/new?examId=${examId}`} size="sm">
-                <ListChecks className="size-4" /> הקצאה לכיתה
+                <ListChecks className="size-4" /> שליחה לכיתה
               </LinkButton>
             )}
           </div>
@@ -322,8 +321,8 @@ export function ExamBuilder({
                 <SubjectInput id="subject" value={exam.subject ?? ""} onChange={(e) => update((x) => ({ ...x, subject: e.target.value || null }))} className="h-11 text-base" placeholder="לדוגמה: היסטוריה" />
               </Field>
             </div>
-            <Field label="תיאור (לא חובה)" htmlFor="description" hint="מוצג לתלמידים לפני תחילת המבחן">
-              <Textarea id="description" rows={2} value={exam.description ?? ""} onChange={(e) => update((x) => ({ ...x, description: e.target.value }))} />
+            <Field label="הסבר לתלמידים לפני המבחן (לא חובה)" htmlFor="description">
+              <Input id="description" dir="auto" value={exam.description ?? ""} placeholder="לדוגמה: ענו בקול ברור. אפשר לחשוב לפני שמתחילים להקליט." onChange={(e) => update((x) => ({ ...x, description: e.target.value }))} />
             </Field>
           </Card>
 
@@ -344,7 +343,7 @@ export function ExamBuilder({
               onQuestion={(qi, patch) => setQuestion(si, qi, patch)}
               onMove={(dir) => update((e) => ({ ...e, sections: move(e.sections, si, dir) }))}
               onRemove={() => update((e) => ({ ...e, sections: e.sections.filter((_, i) => i !== si) }))}
-              onAddQuestion={() => setSection(si, { questions: [...s.questions, newQuestion(simulation)] })}
+              onAddQuestion={() => setSection(si, { questions: [...s.questions, newQuestion()] })}
               onMoveQuestion={(qi, dir) => setSection(si, { questions: move(s.questions, qi, dir) })}
               onRemoveQuestion={(qi) => setSection(si, { questions: s.questions.filter((_, j) => j !== qi) })}
               onDuplicateQuestion={(qi) =>
@@ -372,14 +371,18 @@ export function ExamBuilder({
                       mediaId: null,
                       videoUrl: null,
                       maxMediaPlays: null,
-                      questions: [newQuestion(simulation)],
+                      questions: [newQuestion()],
                     },
                   ],
                 }))
               }
-              className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/50 py-5 text-sm font-medium text-ink-2 hover:border-brand hover:text-brand"
+              className={
+                exam.sections.length === 1
+                  ? "flex items-center gap-2 text-sm text-ink-3 hover:text-brand"
+                  : "flex w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-line-strong bg-surface/50 py-5 text-sm font-medium text-ink-2 hover:border-brand hover:text-brand"
+              }
             >
-              <Layers className="size-4" /> הוספת חלק
+              <Layers className="size-4" /> {exam.sections.length === 1 ? "חלוקת המבחן לכמה חלקים (לא חובה)" : "הוספת חלק"}
             </button>
           )}
         </fieldset>
@@ -392,8 +395,8 @@ export function ExamBuilder({
               <div className="grid gap-2">
                 {(
                   [
-                    ["PRACTICE", "תרגול", "בלי לחץ זמן, אפשר לחזור לשאלות"],
-                    ["SIMULATION", "מבחן", "זמני הכנה, הקלטה אוטומטית וזמן כולל"],
+                    ["PRACTICE", "תרגול", "אפשר לחזור לשאלות ולהקליט שוב"],
+                    ["SIMULATION", "מבחן", "שאלה אחרי שאלה, בלי לחזור אחורה"],
                   ] as const
                 ).map(([v, title, body]) => (
                   <button
@@ -405,9 +408,7 @@ export function ExamBuilder({
                         ...x,
                         mode: v,
                         settings:
-                          v === "SIMULATION"
-                            ? { ...x.settings, totalTimeLimitSec: x.settings.totalTimeLimitSec ?? COBE_DEFAULTS.totalTimeLimitSec, allowBackNavigation: false }
-                            : { ...x.settings, totalTimeLimitSec: null, allowBackNavigation: true },
+                          v === "SIMULATION" ? { ...x.settings, allowBackNavigation: false } : { ...x.settings, totalTimeLimitSec: null, allowBackNavigation: true },
                       }))
                     }
                     className={cn("rounded-xl border p-3 text-start", exam.mode === v ? "border-brand bg-brand-soft/50" : "border-line hover:border-line-strong")}
@@ -417,27 +418,25 @@ export function ExamBuilder({
                   </button>
                 ))}
               </div>
-              {exam.mode === "SIMULATION" && (
-                <Field label="זמן כולל למבחן (דקות)" htmlFor="limit" hint="כשהזמן נגמר — מה שהוקלט מוגש אוטומטית. ריק = ללא מגבלה.">
-                  <Input
-                    id="limit"
-                    type="number"
-                    min={1}
-                    max={240}
-                    inputMode="numeric"
-                    value={exam.settings.totalTimeLimitSec ? Math.round(exam.settings.totalTimeLimitSec / 60) : ""}
-                    onChange={(e) => {
-                      const m = numOrNull(e.target.value);
-                      update((x) => ({ ...x, settings: { ...x.settings, totalTimeLimitSec: m ? Math.min(240, Math.max(1, m)) * 60 : null } }));
-                    }}
-                  />
-                </Field>
-              )}
               <details className="rounded-xl border border-line">
                 <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-medium text-ink-2 hover:text-ink">
                   <Settings2 className="size-4" /> הגדרות מתקדמות
                 </summary>
                 <div className="space-y-4 border-t border-line p-3">
+                  <Field label="זמן כולל למבחן בדקות (לא חובה)" htmlFor="limit" hint="ריק = הבוחן/ת מחליט/ה מתי מסיימים. אם יש זמן, בסופו מה שהוקלט מוגש לבד.">
+                    <Input
+                      id="limit"
+                      type="number"
+                      min={1}
+                      max={240}
+                      inputMode="numeric"
+                      value={exam.settings.totalTimeLimitSec ? Math.round(exam.settings.totalTimeLimitSec / 60) : ""}
+                      onChange={(e) => {
+                        const m = numOrNull(e.target.value);
+                        update((x) => ({ ...x, settings: { ...x.settings, totalTimeLimitSec: m ? Math.min(240, Math.max(1, m)) * 60 : null } }));
+                      }}
+                    />
+                  </Field>
                   <Checkbox
                     checked={exam.settings.allowBackNavigation}
                     onChange={(e) => update((x) => ({ ...x, settings: { ...x.settings, allowBackNavigation: e.target.checked } }))}
@@ -639,38 +638,48 @@ function SectionCard(props: {
   onDuplicateQuestion: (qi: number) => void;
 }) {
   const { section: s, index } = props;
+  // A plain exam with one part: hide the "parts" layer so the teacher just sees questions.
+  const single = props.count === 1 && s.kind === "GENERAL" && s.choiceMode === "ALL" && !s.mediaId && !s.videoUrl;
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line bg-subtle/60 px-5 py-3">
-        <span className="grid size-7 place-items-center rounded-md bg-ink text-xs font-semibold text-white tabular">{index + 1}</span>
-        <Input
-          aria-label="שם החלק"
-          value={s.title}
-          onChange={(e) => props.onChange({ title: e.target.value })}
-          dir="auto"
-          className="h-9 max-w-sm flex-1 bg-surface font-medium"
-        />
-        <div className="ms-auto flex items-center gap-1">
-          <IconBtn label="הזזה למעלה" onClick={() => props.onMove(-1)} disabled={index === 0}>
-            <ArrowUp className="size-4" />
-          </IconBtn>
-          <IconBtn label="הזזה למטה" onClick={() => props.onMove(1)} disabled={index === props.count - 1}>
-            <ArrowDown className="size-4" />
-          </IconBtn>
-          <IconBtn
-            label="מחיקת חלק"
-            onClick={() => {
-              if (confirm(`למחוק את "${s.title}" ואת כל השאלות בו?`)) props.onRemove();
-            }}
-          >
-            <Trash2 className="size-4" />
-          </IconBtn>
+      {single ? (
+        <div className="border-b border-line bg-subtle/60 px-5 py-3">
+          <h2 className="text-[15px] font-semibold">השאלות</h2>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 border-b border-line bg-subtle/60 px-5 py-3">
+          <span className="grid size-7 place-items-center rounded-md bg-ink text-xs font-semibold text-white tabular">{index + 1}</span>
+          <Input
+            aria-label="שם החלק"
+            value={s.title}
+            onChange={(e) => props.onChange({ title: e.target.value })}
+            dir="auto"
+            className="h-9 max-w-sm flex-1 bg-surface font-medium"
+          />
+          <div className="ms-auto flex items-center gap-1">
+            <IconBtn label="הזזה למעלה" onClick={() => props.onMove(-1)} disabled={index === 0}>
+              <ArrowUp className="size-4" />
+            </IconBtn>
+            <IconBtn label="הזזה למטה" onClick={() => props.onMove(1)} disabled={index === props.count - 1}>
+              <ArrowDown className="size-4" />
+            </IconBtn>
+            <IconBtn
+              label="מחיקת חלק"
+              onClick={() => {
+                if (confirm(`למחוק את "${s.title}" ואת כל השאלות בו?`)) props.onRemove();
+              }}
+            >
+              <Trash2 className="size-4" />
+            </IconBtn>
+          </div>
+        </div>
+      )}
       <div className="space-y-4 p-5">
-        <Field label="הוראות לתלמידים (לא חובה)" htmlFor={`instr-${s.key}`}>
-          <Textarea id={`instr-${s.key}`} dir="auto" rows={2} value={s.instructions ?? ""} onChange={(e) => props.onChange({ instructions: e.target.value })} />
-        </Field>
+        {(!single || s.instructions) && (
+          <Field label="הוראות לתלמידים (לא חובה)" htmlFor={`instr-${s.key}`}>
+            <Textarea id={`instr-${s.key}`} dir="auto" rows={2} value={s.instructions ?? ""} onChange={(e) => props.onChange({ instructions: e.target.value })} />
+          </Field>
+        )}
         {s.choiceMode === "CHOOSE_ONE" && <p className="rounded-lg bg-brand-soft/60 px-3 py-2 text-sm text-ink-2">בחלק הזה התלמיד/ה בוחר/ת נושא אחד מתוך האפשרויות ועונה רק עליו.</p>}
         {(s.kind === "AUDIO_VISUAL" || s.mediaId || s.videoUrl) && (
           <div className="space-y-4 rounded-xl border border-line bg-subtle/40 p-4">
@@ -688,6 +697,7 @@ function SectionCard(props: {
             />
           </div>
         )}
+        {!single && (
         <details className="rounded-xl border border-line">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-ink-2 hover:text-ink">
             <Settings2 className="size-4" /> הגדרות לחלק
@@ -713,6 +723,7 @@ function SectionCard(props: {
             </Field>
           </div>
         </details>
+        )}
 
         <div className="space-y-3">
           {s.questions.map((q, qi) => (
@@ -767,7 +778,7 @@ function QuestionCard(props: {
   const { q } = props;
   const [open, setOpen] = useState(!q.prompt);
   const label = q.title || (props.choose ? `נושא ${props.index + 1}` : `שאלה ${props.index + 1}`);
-  const hasMedia = q.audioId || q.videoId || q.imageId;
+  const hasMedia = q.videoId || q.imageId || q.videoUrl;
   return (
     <div className="rounded-xl border border-line">
       <div className="flex items-center gap-2 px-3 py-2">
@@ -783,7 +794,7 @@ function QuestionCard(props: {
           )}
         </button>
         <span className="hidden shrink-0 text-xs text-ink-3 tabular sm:inline">
-          {q.points} נק׳ · {q.maxRecordSec} שנ׳{hasMedia ? " · מדיה" : ""}
+          {q.points} נק׳{hasMedia ? " · מדיה" : ""}
         </span>
         <IconBtn label="הזזה למעלה" onClick={() => props.onMove(-1)} disabled={props.index === 0}>
           <ArrowUp className="size-4" />
@@ -832,32 +843,13 @@ function QuestionCard(props: {
             <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-ink-2 hover:text-ink">
               <Settings2 className="size-4" /> הגדרות לשאלה
               <span className="font-normal text-ink-3">
-                · {q.prepTimeSec ? `הכנה ${q.prepTimeSec} שנ׳ · ` : ""}הקלטה עד {q.maxRecordSec} שנ׳ · {q.points} נק׳
+                · {q.points} נק׳{hasQuestionLimits(q) ? " · עם הגבלת זמן" : ""}
               </span>
             </summary>
             <div className="space-y-4 border-t border-line p-4">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field label="זמן הכנה (שנ׳)" htmlFor={`prep-${q.key}`} hint="0 = ללא">
-                  <Input id={`prep-${q.key}`} type="number" min={0} max={600} value={q.prepTimeSec} onChange={(e) => props.onChange({ prepTimeSec: Math.min(600, numOrNull(e.target.value) ?? 0) })} />
-                </Field>
-                <Field label="זמן הקלטה (שנ׳)" htmlFor={`rec-${q.key}`}>
-                  <Input id={`rec-${q.key}`} type="number" min={10} max={900} value={q.maxRecordSec} onChange={(e) => props.onChange({ maxRecordSec: Math.min(900, Math.max(10, numOrNull(e.target.value) ?? 10)) })} />
-                </Field>
-                <Field label="ניקוד" htmlFor={`pts-${q.key}`}>
-                  <Input id={`pts-${q.key}`} type="number" min={1} max={100} value={q.points} onChange={(e) => props.onChange({ points: Math.min(100, Math.max(1, numOrNull(e.target.value) ?? 1)) })} />
-                </Field>
-                <Field label="השמעות מרביות" htmlFor={`mp-${q.key}`} hint="ריק = ללא הגבלה">
-                  <Input id={`mp-${q.key}`} type="number" min={1} max={20} value={q.maxMediaPlays ?? ""} onChange={(e) => props.onChange({ maxMediaPlays: numOrNull(e.target.value) || null })} />
-                </Field>
-              </div>
-              <div className="flex flex-wrap items-end gap-6">
-                <Checkbox checked={q.allowReRecord} onChange={(e) => props.onChange({ allowReRecord: e.target.checked })} label="מותר להקליט מחדש" />
-                {q.allowReRecord && (
-                  <Field label="מספר הקלטות מרבי" htmlFor={`mr-${q.key}`} hint="ריק = ללא הגבלה" className="w-44">
-                    <Input id={`mr-${q.key}`} type="number" min={1} max={20} value={q.maxRecordings ?? ""} onChange={(e) => props.onChange({ maxRecordings: numOrNull(e.target.value) || null })} />
-                  </Field>
-                )}
-              </div>
+              <Field label="ניקוד" htmlFor={`pts-${q.key}`} className="w-32">
+                <Input id={`pts-${q.key}`} type="number" min={1} max={100} value={q.points} onChange={(e) => props.onChange({ points: Math.min(100, Math.max(1, numOrNull(e.target.value) ?? 1)) })} />
+              </Field>
               <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
                 <Field label="כותרת (לא חובה)" htmlFor={`qt-${q.key}`}>
                   <Input id={`qt-${q.key}`} dir="auto" value={q.title ?? ""} placeholder={label} onChange={(e) => props.onChange({ title: e.target.value })} />
@@ -891,6 +883,7 @@ function QuestionCard(props: {
                   }}
                 />
               </div>
+              <QuestionLimits q={q} onChange={props.onChange} />
             </div>
           </details>
         </div>
@@ -1029,5 +1022,56 @@ function IconBtn({ label, children, ...props }: React.ButtonHTMLAttributes<HTMLB
     >
       {children}
     </button>
+  );
+}
+
+/** Time and attempt limits for one question. Off by default: in most exams the proctor decides when to stop. */
+function QuestionLimits({ q, onChange }: { q: BuilderQuestion; onChange: (p: Partial<BuilderQuestion>) => void }) {
+  const [on, setOn] = useState(() => hasQuestionLimits(q) || q.maxMediaPlays != null || !q.allowReRecord);
+  return (
+    <div className="space-y-4 rounded-lg bg-subtle p-3">
+      <Checkbox
+        checked={on}
+        onChange={(e) => {
+          setOn(e.target.checked);
+          if (!e.target.checked) onChange({ prepTimeSec: 0, maxRecordSec: OPEN_RECORD_SEC, maxRecordings: null, maxMediaPlays: null, allowReRecord: true });
+        }}
+        label="הגבלת זמן או מספר הקלטות"
+        hint="בדרך כלל לא צריך: התלמיד/ה מקליט/ה כמה שצריך, והבוחן/ת אומר/ת מתי לסיים."
+      />
+      {on && (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label="זמן הכנה (שנ׳)" htmlFor={`prep-${q.key}`} hint="0 = ללא">
+              <Input id={`prep-${q.key}`} type="number" min={0} max={600} value={q.prepTimeSec} onChange={(e) => onChange({ prepTimeSec: Math.min(600, numOrNull(e.target.value) ?? 0) })} />
+            </Field>
+            <Field label="זמן הקלטה (שנ׳)" htmlFor={`rec-${q.key}`} hint="ריק = ללא הגבלה">
+              <Input
+                id={`rec-${q.key}`}
+                type="number"
+                min={10}
+                max={OPEN_RECORD_SEC - 1}
+                value={hasRecordLimit(q.maxRecordSec) ? q.maxRecordSec : ""}
+                onChange={(e) => {
+                  const v = numOrNull(e.target.value);
+                  onChange({ maxRecordSec: v ? Math.min(OPEN_RECORD_SEC, Math.max(10, v)) : OPEN_RECORD_SEC });
+                }}
+              />
+            </Field>
+            <Field label="השמעות מרביות" htmlFor={`mp-${q.key}`} hint="ריק = ללא הגבלה">
+              <Input id={`mp-${q.key}`} type="number" min={1} max={20} value={q.maxMediaPlays ?? ""} onChange={(e) => onChange({ maxMediaPlays: numOrNull(e.target.value) || null })} />
+            </Field>
+          </div>
+          <div className="flex flex-wrap items-end gap-6">
+            <Checkbox checked={q.allowReRecord} onChange={(e) => onChange({ allowReRecord: e.target.checked })} label="מותר להקליט מחדש" />
+            {q.allowReRecord && (
+              <Field label="מספר הקלטות מרבי" htmlFor={`mr-${q.key}`} hint="ריק = ללא הגבלה" className="w-44">
+                <Input id={`mr-${q.key}`} type="number" min={1} max={20} value={q.maxRecordings ?? ""} onChange={(e) => onChange({ maxRecordings: numOrNull(e.target.value) || null })} />
+              </Field>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

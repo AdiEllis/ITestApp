@@ -39,7 +39,7 @@ export default async function AttemptResult({ params, searchParams }: { params: 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link href="/s" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
-        <ArrowRight className="size-4" /> המשימות שלי
+        <ArrowRight className="size-4" /> המבחנים שלי
       </Link>
       {(timedOut || justSubmitted) && <ScrollTop />}
       {timedOut && (

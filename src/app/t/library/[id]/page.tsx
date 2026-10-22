@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { En } from "@/components/ui/en";
 import { MediaPlayer } from "@/components/media/media-player";
-import { MODE_LABELS } from "@/lib/exam-types";
+import { hasRecordLimit, MODE_LABELS } from "@/lib/exam-types";
 import { formatDate, formatDuration } from "@/lib/format";
 import { db } from "@/lib/db";
 import { LibraryActions } from "./actions";
@@ -80,7 +80,7 @@ export default async function LibraryEntryPage({ params }: { params: Promise<{ i
                     </ul>
                   )}
                   <p className="mt-2 text-xs text-ink-3">
-                    {q.points} נק׳ · הקלטה עד {formatDuration(q.maxRecordSec)}
+                    {q.points} נק׳{hasRecordLimit(q.maxRecordSec) ? ` · הקלטה עד ${formatDuration(q.maxRecordSec)}` : ""}
                     {q.prepTimeSec ? ` · הכנה ${q.prepTimeSec} שנ׳` : ""}
                     {q.audio ? " · שמע" : ""}
                     {q.video ? " · וידאו" : ""}

@@ -126,9 +126,9 @@ test.describe.serial("full teacher ↔ student flow", () => {
   });
 
   test("4. teacher assigns the exam to the class", async () => {
-    await teacher.getByRole("link", { name: "הקצאה לכיתה" }).click();
+    await teacher.getByRole("link", { name: "שליחה לכיתה" }).click();
     await expect(teacher).toHaveURL(/assignments\/new/);
-    await teacher.getByRole("button", { name: "הקצאה", exact: true }).click();
+    await teacher.getByRole("button", { name: "שליחה לכיתה", exact: true }).click();
     await expect(teacher).toHaveURL(/\/t\/assignments\/\w+$/);
     await expect(teacher.getByText("לא התחיל/ה").first()).toBeVisible();
   });
@@ -358,7 +358,7 @@ test.describe.serial("full teacher ↔ student flow", () => {
 
   test("12. teacher dashboard reflects submissions", async () => {
     await teacher.goto("/t");
-    await expect(teacher.getByText("הגשות שהתקבלו")).toBeVisible();
+    await expect(teacher.getByText("ממתינות לבדיקה", { exact: true })).toBeVisible();
     await shot(teacher, "12-dashboard");
   });
 });

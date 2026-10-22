@@ -3,7 +3,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Square, Volume2, Wand2 } from "lucide-react";
 import type { BuilderQuestion, MediaMeta } from "@/lib/builder-state";
 import { audioMatchesText, spokenText } from "@/lib/exam-types";
-import { speakWithDevice, stopDeviceVoice } from "@/lib/client/speech";
+import { hasDeviceVoice, speakWithDevice, stopDeviceVoice } from "@/lib/client/speech";
 import { generateSpeechAction } from "../../_actions/exams";
 import { MediaField } from "@/components/media/media-field";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ export function ReadAloudPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const [noVoice, setNoVoice] = useState(false);
+  const [showReadText, setShowReadText] = useState(!!q.readText);
   const text = spokenText(q);
   const current = audioMatchesText(q);
   const status = !q.audioId
@@ -47,6 +49,21 @@ export function ReadAloudPanel({
       : q.audioApproved
         ? { tone: "ok" as const, label: "ההקראה אושרה" }
         : { tone: "warn" as const, label: "צריך להאזין ולאשר" };
+
+  async function toggleDeviceVoice() {
+    if (speaking) {
+      stopDeviceVoice();
+      setSpeaking(false);
+      return;
+    }
+    if (!(await hasDeviceVoice(text))) {
+      setNoVoice(true);
+      return;
+    }
+    setNoVoice(false);
+    setSpeaking(true);
+    speakWithDevice(text, () => setSpeaking(false));
+  }
 
   async function generate() {
     setBusy(true);
@@ -70,13 +87,34 @@ export function ReadAloudPanel({
         <Badge tone={status.tone}>{status.label}</Badge>
       </div>
 
-      <Field
-        label="נוסח להקראה (לא חובה)"
-        htmlFor={`rt-${q.key}`}
-        hint="אם הקול טועה במילה, כתבו כאן את השאלה עם ניקוד, בכתיב מלא, או מספרים במילים. התלמיד/ה רואה את השאלה הרגילה ושומע/ת את הנוסח הזה."
-      >
-        <Textarea id={`rt-${q.key}`} dir="auto" rows={2} value={q.readText ?? ""} placeholder={text || "הנוסח של השאלה ייקרא כפי שהוא"} onChange={(e) => onChange({ readText: e.target.value || null })} />
-      </Field>
+      {text && (
+        <div className="space-y-1.5">
+          <Button size="sm" variant="secondary" onClick={toggleDeviceVoice}>
+            {speaking ? <Square className="size-3.5 fill-current" /> : <Volume2 className="size-4" />} {speaking ? "עצירה" : "השמעת השאלה בקול המחשב"}
+          </Button>
+          {noVoice ? (
+            <p className="text-xs text-warn">במחשב הזה אין קול בעברית. כדי לשמוע, פתחו את האתר בדפדפן Microsoft Edge.</p>
+          ) : (
+            <p className="text-xs text-ink-3">
+              לשמיעה מהירה בזמן הכתיבה. {deviceVoiceFallback && !q.audioId ? "בלי קובץ הקראה, כל תלמיד/ה ישמע/תשמע את הקול של המכשיר שלו/ה, והוא יכול להיות שונה." : "התלמידים ישמעו את קובץ ההקראה שלמטה."}
+            </p>
+          )}
+        </div>
+      )}
+
+      {showReadText ? (
+        <Field
+          label="נוסח להקראה (לא חובה)"
+          htmlFor={`rt-${q.key}`}
+          hint="אם הקול טועה במילה, כתבו כאן את השאלה עם ניקוד, בכתיב מלא, או מספרים במילים. התלמיד/ה רואה את השאלה הרגילה ושומע/ת את הנוסח הזה."
+        >
+          <Textarea id={`rt-${q.key}`} dir="auto" rows={2} value={q.readText ?? ""} placeholder={text || "הנוסח של השאלה ייקרא כפי שהוא"} onChange={(e) => onChange({ readText: e.target.value || null })} />
+        </Field>
+      ) : (
+        <button type="button" onClick={() => setShowReadText(true)} className="text-sm text-brand hover:underline">
+          הקול טועה במילה? אפשר לכתוב נוסח עם ניקוד להקראה
+        </button>
+      )}
 
       {q.audioId && !current && (
         <p className="flex items-start gap-2 text-sm text-danger">
@@ -122,26 +160,6 @@ export function ReadAloudPanel({
         </div>
       )}
 
-      {!q.audioId && deviceVoiceFallback && text && (
-        <div className="space-y-1.5">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              if (speaking) {
-                stopDeviceVoice();
-                setSpeaking(false);
-                return;
-              }
-              setSpeaking(true);
-              speakWithDevice(text, () => setSpeaking(false));
-            }}
-          >
-            {speaking ? <Square className="size-3.5 fill-current" /> : <Volume2 className="size-4" />} {speaking ? "עצירה" : "השמעה בקול המחשב שלי"}
-          </Button>
-          <p className="text-xs text-ink-3">בלי קובץ הקראה, כל תלמיד/ה שומע/ת את הקול של המכשיר שלו/ה. הקול והדיוק יכולים להיות שונים ממה שאתם שומעים כאן.</p>
-        </div>
-      )}
       {error && (
         <p className="text-sm text-danger" role="alert">
           {error}

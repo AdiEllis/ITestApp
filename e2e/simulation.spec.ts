@@ -50,8 +50,8 @@ test("simulation: prep timer → auto record → auto stop → time limit → au
   await t.reload();
   await t.getByRole("button", { name: "פרסום" }).click();
   await expect(t.getByText("המבחן פורסם")).toBeVisible();
-  await t.getByRole("link", { name: "הקצאה לכיתה" }).click();
-  await t.getByRole("button", { name: "הקצאה", exact: true }).click();
+  await t.getByRole("link", { name: "שליחה לכיתה" }).click();
+  await t.getByRole("button", { name: "שליחה לכיתה", exact: true }).click();
   await expect(t).toHaveURL(/\/t\/assignments\/\w+$/);
 
   const sctx = await browser.newContext({ permissions: ["microphone"], viewport: { width: 390, height: 844 }, isMobile: true });

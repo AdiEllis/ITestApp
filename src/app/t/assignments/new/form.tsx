@@ -113,7 +113,7 @@ export function AssignForm({
         </div>
       </details>
       <FormMessage state={state} />
-      <SubmitButton size="lg" pendingText="שולח…">הקצאה</SubmitButton>
+      <SubmitButton size="lg" pendingText="שולח…">שליחה לכיתה</SubmitButton>
     </form>
   );
 }

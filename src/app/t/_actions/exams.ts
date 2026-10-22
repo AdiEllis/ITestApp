@@ -11,7 +11,7 @@ import { audit } from "@/lib/audit";
 import { cobeSimulationTemplate, COBE_DEFAULTS } from "@/lib/cobe";
 import { COBE_RUBRIC_NAME, GENERAL_RUBRIC_NAME } from "@/lib/default-rubrics";
 import { copyExam, deleteMediaIfUnreferenced, loadExam, newStorageKey, publishProblems } from "@/lib/exams";
-import { examSettingsSchema, spokenText } from "@/lib/exam-types";
+import { examSettingsSchema, OPEN_RECORD_SEC, spokenText } from "@/lib/exam-types";
 import { mediaCategory } from "@/lib/files";
 import { storage } from "@/lib/storage";
 import { rateLimit } from "@/lib/rate-limit";
@@ -55,7 +55,8 @@ export async function createExamAction(_: unknown, form: FormData): Promise<Acti
   const d = parsed.data;
   const simulation = d.mode === "SIMULATION";
   const settings = examSettingsSchema.parse({
-    totalTimeLimitSec: simulation ? COBE_DEFAULTS.totalTimeLimitSec : null,
+    // Only the English template has time limits; in other exams the proctor decides when to stop.
+    totalTimeLimitSec: simulation && d.start === "cobe" ? COBE_DEFAULTS.totalTimeLimitSec : null,
     allowBackNavigation: !simulation,
     allowReviewOwnRecording: true,
     // The English template shows the questions as text, as in the original COBE practice.
@@ -70,7 +71,7 @@ export async function createExamAction(_: unknown, form: FormData): Promise<Acti
             instructions: "",
             kind: "GENERAL" as const,
             choiceMode: "ALL" as const,
-            questions: [{ title: "", prompt: "", subQuestions: [] as string[], prepTimeSec: 30, maxRecordSec: 120, points: 25, allowReRecord: true, maxRecordings: 3 as number | null }],
+            questions: [{ title: "", prompt: "", subQuestions: [] as string[], prepTimeSec: 0, maxRecordSec: OPEN_RECORD_SEC, points: 25, allowReRecord: true, maxRecordings: null as number | null }],
           },
         ];
   const exam = await db.exam.create({
@@ -133,7 +134,7 @@ export async function createImportedExamAction(input: z.infer<typeof importSchem
         level: "OTHER",
         mode: d.mode,
         rubricId: await systemRubricId(),
-        settings: examSettingsSchema.parse({ totalTimeLimitSec: simulation ? COBE_DEFAULTS.totalTimeLimitSec : null, allowBackNavigation: !simulation }),
+        settings: examSettingsSchema.parse({ totalTimeLimitSec: null, allowBackNavigation: !simulation }),
         sections: { create: [{ order: 0, title: "חלק 1", kind: "GENERAL", choiceMode: "ALL" }] },
         sourceFiles: { create: media.map((m) => ({ mediaId: m.id, label: m.originalName })) },
       },
