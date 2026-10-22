@@ -93,11 +93,11 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
                 <table className="w-full text-sm">
                   <thead className="bg-subtle/70 text-xs text-ink-3">
                     <tr>
-                      <th className="px-5 py-2.5 text-start font-medium">שם</th>
-                      <th className="px-3 py-2.5 text-start font-medium">שם משתמש</th>
+                      <th className="px-4 py-2.5 text-start font-medium sm:px-5">שם</th>
+                      <th className="hidden px-3 py-2.5 text-start font-medium sm:table-cell">שם משתמש</th>
                       <th className="px-3 py-2.5 text-start font-medium">הגשות</th>
                       <th className="px-3 py-2.5 text-start font-medium">ממוצע</th>
-                      <th className="px-3 py-2.5 text-start font-medium">כניסה אחרונה</th>
+                      <th className="hidden px-3 py-2.5 text-start font-medium sm:table-cell">כניסה אחרונה</th>
                       <th className="px-5 py-2.5" />
                     </tr>
                   </thead>
@@ -108,17 +108,17 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
                       const avg = graded.length ? Math.round(graded.reduce((x, a) => x + (a.totalScore ?? 0), 0) / graded.length) : null;
                       return (
                         <tr key={s.id} className="hover:bg-subtle/40">
-                          <td className="px-5 py-3 font-medium">
+                          <td className="min-w-32 px-4 py-3 font-medium sm:px-5">
                             <Link href={`/t/students/${s.id}`} className="hover:text-brand">
                               {s.name}
                             </Link>
                           </td>
-                          <td className="px-3 py-3 font-mono text-[13px] text-ink-2" dir="ltr">
+                          <td className="hidden px-3 py-3 font-mono text-[13px] text-ink-2 sm:table-cell" dir="ltr">
                             {s.username}
                           </td>
                           <td className="px-3 py-3 tabular">{submitted}</td>
                           <td className="px-3 py-3 tabular">{avg ?? "—"}</td>
-                          <td className="px-3 py-3 text-ink-3">
+                          <td className="hidden px-3 py-3 text-ink-3 sm:table-cell">
                             {s.lastLoginAt ? formatDate(s.lastLoginAt) : s.mustChangePassword ? <Badge tone="warn">טרם התחבר/ה</Badge> : "—"}
                           </td>
                           <td className="px-5 py-3">

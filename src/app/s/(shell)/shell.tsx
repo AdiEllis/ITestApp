@@ -1,18 +1,23 @@
 "use client";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleHelp, History, ListTodo, LogOut, Mic } from "lucide-react";
+import { CircleHelp, History, ListTodo, Loader2, LogOut, Mic, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/components/ui/cn";
 import { logoutAction } from "@/app/(auth)/actions";
 import { DemoBanner } from "@/components/demo-banner";
 
 const NAV = [
-  { href: "/s", label: "משימות", icon: ListTodo, exact: true },
-  { href: "/s/history", label: "היסטוריה וציונים", icon: History },
-  { href: "/s/mic-check", label: "בדיקת מיקרופון", icon: Mic },
-  { href: "/help/students", label: "עזרה", icon: CircleHelp },
+  { href: "/s", label: "משימות", short: "משימות", icon: ListTodo, exact: true },
+  { href: "/s/history", label: "היסטוריה וציונים", short: "ציונים", icon: History },
+  { href: "/s/mic-check", label: "בדיקת מיקרופון", short: "מיקרופון", icon: Mic },
+  { href: "/help/students", label: "עזרה", short: "עזרה", icon: CircleHelp },
 ];
+
+function TabIcon({ icon: Icon }: { icon: LucideIcon }) {
+  const { pending } = useLinkStatus();
+  return pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Icon className="size-5" aria-hidden />;
+}
 
 export function StudentShell({ name, demo, children }: { name: string; demo: boolean; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -33,8 +38,9 @@ export function StudentShell({ name, demo, children }: { name: string; demo: boo
           <div className="ms-auto flex items-center gap-2">
             <span className="hidden text-sm text-ink-2 sm:inline">{name}</span>
             <form action={logoutAction}>
-              <button className="grid size-9 place-items-center rounded-lg text-ink-3 hover:bg-subtle hover:text-ink" aria-label="התנתקות" title="התנתקות">
-                <LogOut className="size-4" />
+              <button className="flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-ink-3 hover:bg-subtle hover:text-ink">
+                <LogOut className="size-4" aria-hidden />
+                יציאה
               </button>
             </form>
           </div>
@@ -43,9 +49,9 @@ export function StudentShell({ name, demo, children }: { name: string; demo: boo
       <main className="mx-auto max-w-4xl px-4 py-6">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden" aria-label="ניווט">
         {NAV.map((n) => (
-          <Link key={n.href} href={n.href} aria-current={active(n) ? "page" : undefined} className={cn("flex flex-col items-center gap-0.5 py-2 text-[11px]", active(n) ? "text-brand" : "text-ink-3")}>
-            <n.icon className="size-5" />
-            {n.label}
+          <Link key={n.href} href={n.href} aria-current={active(n) ? "page" : undefined} className={cn("flex min-h-14 flex-col items-center justify-center gap-0.5 py-2 text-xs", active(n) ? "font-medium text-brand" : "text-ink-3")}>
+            <TabIcon icon={n.icon} />
+            {n.short}
           </Link>
         ))}
       </nav>

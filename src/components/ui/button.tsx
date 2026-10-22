@@ -15,8 +15,9 @@ const variants: Record<Variant, string> = {
   danger: "bg-surface text-danger border border-[#efc9c5] hover:bg-danger-soft",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-[15px]",
+  // Finger-sized on touch screens (≥40px), compact with a mouse.
+  sm: "h-8 px-3 text-sm pointer-coarse:h-10",
+  md: "h-10 px-4 text-[15px] pointer-coarse:h-11",
   lg: "h-12 px-5 text-base",
 };
 

@@ -216,18 +216,20 @@ export function ExamBuilder({
   return (
     <div className="pb-24">
       {/* Top bar */}
-      <div className="sticky top-14 z-20 -mx-4 mb-6 border-b border-line bg-canvas/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-10 lg:px-10">
+      <div className="z-20 -mx-4 mb-6 border-b border-line bg-canvas/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:-mx-10 lg:px-10">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Link href="/t/exams" className="text-sm text-ink-3 hover:text-ink">
+            <Link href="/t/exams" className="shrink-0 whitespace-nowrap text-sm text-ink-3 hover:text-ink">
               המבחנים שלי
             </Link>
             <span className="text-ink-3">/</span>
             <span className="truncate font-medium">{exam.title || "ללא שם"}</span>
-            <Badge tone={status === "PUBLISHED" ? "ok" : status === "ARCHIVED" ? "neutral" : "warn"}>
+            <Badge tone={status === "PUBLISHED" ? "ok" : status === "ARCHIVED" ? "neutral" : "warn"} className="shrink-0">
               {status === "PUBLISHED" ? "מפורסם" : status === "ARCHIVED" ? "בארכיון" : "טיוטה"}
             </Badge>
-            <Badge tone={simulation ? "brand" : "neutral"}>{MODE_LABELS[exam.mode]}</Badge>
+            <span className="hidden shrink-0 sm:inline-flex">
+              <Badge tone={simulation ? "brand" : "neutral"}>{MODE_LABELS[exam.mode]}</Badge>
+            </span>
           </div>
           <SaveIndicator state={readOnly ? "saved" : saveState} onRetry={save} />
           <div className="flex flex-wrap items-center gap-2">
@@ -258,11 +260,11 @@ export function ExamBuilder({
           ].map(([label, done], i) => {
             const current = (i === 1 && status === "DRAFT") || (i === 2 && status === "PUBLISHED");
             return (
-              <li key={i} className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", current ? "border-brand bg-brand-soft/60 font-medium" : "border-line bg-surface text-ink-2")}>
+              <li key={i} className={cn("flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-center text-[13px] leading-tight sm:flex-row sm:gap-2 sm:px-3 sm:text-start sm:text-sm", current ? "border-brand bg-brand-soft/60 font-medium" : "border-line bg-surface text-ink-2")}>
                 <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold", done && !current ? "bg-ok text-white" : current ? "bg-brand text-white" : "bg-subtle text-ink-3")}>
                   {done && !current ? <Check className="size-3.5" /> : i + 1}
                 </span>
-                <span className="truncate">{label as string}</span>
+                <span>{label as string}</span>
               </li>
             );
           })}

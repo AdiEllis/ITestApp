@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { NavProgress } from "@/components/nav-progress";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -16,7 +18,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        <Suspense>
+          <NavProgress />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }

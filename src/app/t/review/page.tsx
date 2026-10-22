@@ -47,9 +47,9 @@ export default async function ReviewQueue({ searchParams }: { searchParams: Prom
     <>
       <PageHeader title="בדיקת הגשות" description="האזנה להקלטות, מתן ציון ומשוב." actions={<HelpButton topic="reviewList" />} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="inline-flex flex-wrap rounded-lg bg-[#ebebe6] p-1 text-sm">
+        <div className="flex max-w-full overflow-x-auto rounded-lg bg-[#ebebe6] p-1 text-sm">
           {FILTERS.map((x) => (
-            <Link key={x.v} href={q(x.v, sp.classroomId)} className={`rounded-md px-3 py-1.5 font-medium ${f === x.v ? "bg-surface shadow-sm" : "text-ink-2 hover:text-ink"}`}>
+            <Link key={x.v} href={q(x.v, sp.classroomId)} className={`shrink-0 whitespace-nowrap rounded-md px-3 py-2 font-medium ${f === x.v ? "bg-surface shadow-sm" : "text-ink-2 hover:text-ink"}`}>
               {x.l}
             </Link>
           ))}
@@ -74,11 +74,12 @@ export default async function ReviewQueue({ searchParams }: { searchParams: Prom
           <ul className="divide-y divide-line">
             {attempts.map((a) => (
               <li key={a.id}>
-                <Link href={`/t/review/${a.id}`} className="flex items-center gap-4 px-5 py-3.5 hover:bg-subtle/60">
+                <Link href={`/t/review/${a.id}`} className="flex items-center gap-3 px-4 py-3.5 hover:bg-subtle/60 sm:gap-4 sm:px-5">
                   <div className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand-strong">{a.student.name.charAt(0)}</div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
-                      {a.student.name} <span className="font-normal text-ink-3">·</span> <span dir="auto">{snapshotOf(a).title}</span>
+                    <p className="truncate font-medium">{a.student.name}</p>
+                    <p className="truncate text-sm text-ink-2" dir="auto">
+                      {snapshotOf(a).title}
                     </p>
                     <p className="text-sm text-ink-3">
                       {a.assignment.classroom.name} · {a.submittedAt ? formatDateTime(a.submittedAt) : ""}

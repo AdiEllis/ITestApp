@@ -1,8 +1,8 @@
 "use client";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LogOut, Menu, X, type LucideIcon } from "lucide-react";
+import { Loader2, LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { Logo } from "./logo";
 import { cn } from "./ui/cn";
 import { logoutAction } from "@/app/(auth)/actions";
@@ -15,6 +15,16 @@ export interface NavItem {
   exact?: boolean;
 }
 
+/** Spinner on the tapped item until the new page shows, so a slow server never looks like a missed tap. */
+function NavIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <Loader2 className="size-[17px] shrink-0 animate-spin text-brand" aria-hidden />
+  ) : (
+    <Icon className={cn("size-[17px] shrink-0", active ? "text-brand" : "text-ink-3")} aria-hidden />
+  );
+}
+
 function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
@@ -25,14 +35,14 @@ function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
           <Link
             key={item.href}
             href={item.href}
-            onClick={onNavigate}
+            onClick={active ? onNavigate : undefined}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[14.5px] transition-colors",
+              "flex h-11 items-center gap-2.5 rounded-lg px-2.5 text-[15px] transition-colors lg:h-9 lg:text-[14.5px]",
               active ? "bg-surface font-medium text-ink shadow-[var(--shadow-card)] ring-1 ring-line" : "text-ink-2 hover:bg-[#ebebe6] hover:text-ink",
             )}
           >
-            <item.icon className={cn("size-[17px] shrink-0", active ? "text-brand" : "text-ink-3")} aria-hidden />
+            <NavIcon icon={item.icon} active={active} />
             <span className="flex-1 truncate">{item.label}</span>
             {item.badge ? <span className="rounded-full bg-brand px-1.5 text-[11px] font-semibold leading-5 text-white tabular">{item.badge}</span> : null}
           </Link>
@@ -63,6 +73,12 @@ export function AppShell({ items, user, roleLabel, home, children, banner }: { i
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-e border-line bg-[#f1f1ed] px-3 py-4 lg:flex">

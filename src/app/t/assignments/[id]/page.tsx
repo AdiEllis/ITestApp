@@ -105,27 +105,27 @@ export default async function AssignmentPage({ params, searchParams }: { params:
               <table className="w-full text-sm">
                 <thead className="bg-subtle/70 text-xs text-ink-3">
                   <tr>
-                    <th className="px-5 py-2.5 text-start font-medium">תלמיד/ה</th>
+                    <th className="px-4 py-2.5 text-start font-medium sm:px-5">תלמיד/ה</th>
                     <th className="px-3 py-2.5 text-start font-medium">סטטוס</th>
-                    <th className="px-3 py-2.5 text-start font-medium">הוגש</th>
+                    <th className="hidden px-3 py-2.5 text-start font-medium sm:table-cell">הוגש</th>
                     <th className="px-3 py-2.5 text-start font-medium">ציון</th>
-                    <th className="px-5 py-2.5" />
+                    <th className="px-4 py-2.5 sm:px-5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {shown.map((r) => (
                     <tr key={r.student.id} className="hover:bg-subtle/40">
-                      <td className="px-5 py-3 font-medium">{r.student.name}</td>
+                      <td className="px-4 py-3 font-medium sm:px-5">{r.student.name}</td>
                       <td className="px-3 py-3">
                         <Badge tone={STATUS[r.status].tone}>{STATUS[r.status].label}</Badge>
                         {r.late && <Badge tone="danger" className="ms-1">באיחור</Badge>}
                       </td>
-                      <td className="px-3 py-3 text-ink-3">
+                      <td className="hidden px-3 py-3 text-ink-3 sm:table-cell">
                         {r.attempt?.submittedAt ? formatDateTime(r.attempt.submittedAt) : "—"}
                         {r.count > 1 && <span className="ms-1 text-xs">(ניסיון {r.attempt?.attemptNumber})</span>}
                       </td>
                       <td className="px-3 py-3 font-semibold tabular">{r.attempt?.totalScore !== null && r.attempt?.totalScore !== undefined ? formatScore(r.attempt.totalScore) : "—"}</td>
-                      <td className="px-5 py-3 text-end">
+                      <td className="px-4 py-3 text-end sm:px-5">
                         {r.attempt && r.attempt.status !== "IN_PROGRESS" && (
                           <LinkButton href={`/t/review/${r.attempt.id}`} size="sm" variant={r.status === "submitted" || r.status === "draft" ? "primary" : "secondary"}>
                             {r.status === "submitted" ? "בדיקה" : "צפייה"}
