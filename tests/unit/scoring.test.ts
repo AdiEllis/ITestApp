@@ -9,7 +9,7 @@ const q = (id: string, points = 25) => ({
 });
 const snapshot: ExamSnapshot = {
   examId: "e", title: "t", description: null, mode: "SIMULATION", level: "FOUR_AND_FIVE",
-  settings: { totalTimeLimitSec: null, allowBackNavigation: true, allowReviewOwnRecording: true },
+  settings: { totalTimeLimitSec: null, allowBackNavigation: true, allowReviewOwnRecording: true, deviceVoiceFallback: false },
   rubric: null, media: {},
   sections: [
     { id: "A", title: "A", instructions: null, kind: "PERSONAL_RESPONSE", choiceMode: "CHOOSE_ONE", mediaId: null, mediaMime: null, maxMediaPlays: null, questions: [q("a1"), q("a2")] },

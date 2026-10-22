@@ -35,6 +35,7 @@ test("simulation: prep timer → auto record → auto stop → time limit → au
   const tempPw = (await cells.nth(2).textContent())!.trim();
 
   await t.goto("/t/exams/new");
+  await t.getByRole("button", { name: /בגרות בעל פה באנגלית/ }).click();
   await t.locator("#title").fill("Timed simulation");
   await t.getByRole("button", { name: "יצירה", exact: true }).click();
   await expect(t).toHaveURL(/\/t\/exams\/(?!new$)\w+$/);

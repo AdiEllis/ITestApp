@@ -4,8 +4,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "OralPrep – תרגול בגרות בעל פה באנגלית", template: "%s · OralPrep" },
-  description: "מערכת לתרגול הבחינה בעל פה באנגלית (COBE) למורים ולתלמידים. סימולציה עצמאית — אינה המערכת הרשמית.",
+  title: { default: "OralPrep – תרגול ומבחנים בעל פה", template: "%s · OralPrep" },
+  description: "מערכת לתרגול ולמבחנים בעל פה בכל מקצוע, לתלמידים עם התאמות הקראה והכתבה. התלמיד שומע את השאלה ומקליט תשובה, והמורה בודקת. אינה מערכת הבחינה הרשמית.",
   robots: { index: false, follow: false },
 };
 

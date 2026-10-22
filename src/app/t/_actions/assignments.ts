@@ -13,6 +13,7 @@ import { snapshotOf } from "@/lib/attempts";
 import { questionScore, rubricPercent, totalGrade, round2, countedQuestions } from "@/lib/scoring";
 import { storage } from "@/lib/storage";
 import type { FormState } from "@/components/ui/form-message";
+import { newQuitPassword, newSebKey } from "@/lib/seb";
 
 const assignSchema = z.object({
   examId: z.string().min(1, "יש לבחור מבחן"),
@@ -24,6 +25,12 @@ const assignSchema = z.object({
   instructions: z.string().max(2000).optional(),
   studentIds: z.array(z.string()).max(200),
   target: z.enum(["class", "students"]),
+  requireSeb: z.boolean(),
+  sebQuitPassword: z
+    .string()
+    .trim()
+    .regex(/^[0-9A-Za-z]{4,20}$/, "סיסמת היציאה: 4–20 ספרות או אותיות באנגלית")
+    .optional(),
 });
 
 export async function createAssignmentAction(_: FormState, form: FormData): Promise<FormState> {
@@ -40,6 +47,8 @@ export async function createAssignmentAction(_: FormState, form: FormData): Prom
       instructions: form.get("instructions") || undefined,
       studentIds: form.getAll("studentIds").map(String),
       target: form.get("target") ?? "class",
+      requireSeb: form.get("requireSeb") === "on",
+      sebQuitPassword: form.get("sebQuitPassword") || undefined,
     });
     const exam = await getOwnExam(user, d.examId);
     if (exam.status !== "PUBLISHED") throw new AppError(400, "יש לפרסם את המבחן לפני הקצאה");
@@ -67,6 +76,9 @@ export async function createAssignmentAction(_: FormState, form: FormData): Prom
         maxAttempts,
         instructions: d.instructions?.trim() || null,
         specificStudents: d.target === "students",
+        requireSeb: d.requireSeb,
+        sebKey: d.requireSeb ? newSebKey() : null,
+        sebQuitPassword: d.requireSeb ? (d.sebQuitPassword ?? newQuitPassword()) : null,
         students: { create: studentIds.map((studentId) => ({ studentId })) },
       },
     });
@@ -97,6 +109,19 @@ export async function updateAssignmentAction(assignmentId: string, _: FormState,
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
+}
+
+/** Turns the classroom (Safe Exam Browser) requirement on or off. A new config file is needed after turning it on. */
+export async function setRequireSebAction(assignmentId: string, on: boolean): Promise<FormState> {
+  const user = await requireUser(["TEACHER"]);
+  const a = await getOwnAssignment(user, assignmentId);
+  await db.assignment.update({
+    where: { id: assignmentId },
+    data: on ? { requireSeb: true, sebKey: a.sebKey ?? newSebKey(), sebQuitPassword: a.sebQuitPassword ?? newQuitPassword() } : { requireSeb: false },
+  });
+  await audit(user.id, on ? "assignment.seb.on" : "assignment.seb.off", { type: "Assignment", id: assignmentId });
+  revalidatePath(`/t/assignments/${assignmentId}`);
+  return { ok: on ? "המבחן ייפתח רק במחשב הנעול" : "המבחן ייפתח בכל דפדפן" };
 }
 
 /** Deletes an assignment with all attempts and their recordings. */

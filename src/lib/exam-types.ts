@@ -7,6 +7,12 @@ export const examSettingsSchema = z.object({
   allowBackNavigation: z.boolean().default(true),
   /** May the student listen to their own recording before submitting? */
   allowReviewOwnRecording: z.boolean().default(true),
+  /**
+   * Questions without an approved audio file are read by the device's own voice.
+   * Off by default: every question then needs audio the teacher listened to and approved,
+   * so every student hears exactly the same, checked reading.
+   */
+  deviceVoiceFallback: z.boolean().default(false),
 });
 export type ExamSettings = z.infer<typeof examSettingsSchema>;
 
@@ -42,6 +48,8 @@ export interface SnapshotQuestion {
   prompt: string;
   subQuestions: string[];
   instructions: string | null;
+  /** Text read aloud by the device voice when the question has no audio file (see deviceVoiceFallback). */
+  readText?: string | null;
   audioId: string | null;
   videoId: string | null;
   imageId: string | null;
@@ -69,6 +77,7 @@ export interface ExamSnapshot {
   examId: string;
   title: string;
   description: string | null;
+  subject?: string | null;
   mode: "PRACTICE" | "SIMULATION";
   level: string;
   settings: ExamSettings;
@@ -84,10 +93,55 @@ export const LEVEL_LABELS: Record<string, string> = {
   FOUR_AND_FIVE: "4 ו־5 יח״ל",
   OTHER: "אחר",
 };
-export const MODE_LABELS: Record<string, string> = { PRACTICE: "תרגול", SIMULATION: "סימולציה" };
+export const MODE_LABELS: Record<string, string> = { PRACTICE: "תרגול", SIMULATION: "מבחן" };
 export const SECTION_KIND_LABELS: Record<string, string> = {
-  PERSONAL_RESPONSE: "Personal Response",
-  PROJECT: "Project",
-  AUDIO_VISUAL: "Audio-Visual Prompt",
-  GENERAL: "כללי",
+  GENERAL: "שאלות",
+  AUDIO_VISUAL: "צפייה או האזנה ואז שאלות",
+  PERSONAL_RESPONSE: "Personal Response (אנגלית)",
+  PROJECT: "Project (אנגלית)",
 };
+
+/** Subjects offered as suggestions. Teachers can type any other subject. */
+export const SUBJECT_SUGGESTIONS = [
+  "היסטוריה",
+  "תנ״ך",
+  "ספרות",
+  "לשון",
+  "אזרחות",
+  "גאוגרפיה",
+  "ביולוגיה",
+  "כימיה",
+  "פיזיקה",
+  "מתמטיקה",
+  "אנגלית",
+  "ערבית",
+  "מדעי המחשב",
+  "תולדות עם ישראל",
+  "מחשבת ישראל",
+];
+
+/**
+ * The text a question's read-aloud voice speaks: the teacher's reading text (for example with niqqud)
+ * or, when there is none, the question and its follow-up questions.
+ */
+export function spokenText(q: { prompt: string; subQuestions: string[]; readText?: string | null }): string {
+  const custom = q.readText?.trim();
+  if (custom) return custom;
+  const subs = q.subQuestions.map((s) => s.trim()).filter(Boolean);
+  return [q.prompt.trim(), ...subs.map((s, i) => `${i + 1}. ${s}`)].filter(Boolean).join("\n");
+}
+
+/** Audio that was made for a different text (the question changed afterwards) is stale. */
+export function audioMatchesText(q: { prompt: string; subQuestions: string[]; readText?: string | null; audioText?: string | null }) {
+  return q.audioText == null || q.audioText === spokenText(q);
+}
+
+/** Hebrew, Arabic or English voice, picked from the text itself. */
+export function detectLanguage(text: string): "he-IL" | "ar-SA" | "en-US" {
+  const he = (text.match(/[\u0590-\u05FF]/g) ?? []).length;
+  const ar = (text.match(/[\u0600-\u06FF]/g) ?? []).length;
+  const en = (text.match(/[A-Za-z]/g) ?? []).length;
+  if (he >= ar && he >= en && he > 0) return "he-IL";
+  if (ar > en) return "ar-SA";
+  return "en-US";
+}

@@ -4,22 +4,23 @@ import Link from "next/link";
 import { FileUp, LayoutTemplate, PenLine } from "lucide-react";
 import { createExamAction } from "../../_actions/exams";
 import { Card } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
+import { SubjectInput } from "@/components/ui/subject-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Alert } from "@/components/ui/alert";
 import { cn } from "@/components/ui/cn";
 
 export function NewExamForm() {
   const [state, action] = useActionState(createExamAction, undefined);
-  const [start, setStart] = useState<"cobe" | "blank">("cobe");
-  const [mode, setMode] = useState<"PRACTICE" | "SIMULATION">("SIMULATION");
+  const [start, setStart] = useState<"cobe" | "blank">("blank");
+  const [mode, setMode] = useState<"PRACTICE" | "SIMULATION">("PRACTICE");
   const choices = [
-    { v: "cobe" as const, icon: LayoutTemplate, title: "מבחן COBE מלא", body: "שלושת החלקים של הבחינה, עם שאלות לדוגמה שאפשר לשנות.", badge: "מומלץ" },
-    { v: "blank" as const, icon: PenLine, title: "תרגול קצר", body: "שאלה אחת או כמה — לתרגול מהיר בכיתה או בבית." },
+    { v: "blank" as const, icon: PenLine, title: "מבחן חדש", body: "כותבים שאלות על החומר שנלמד עד עכשיו, בכל מקצוע. התלמידים שומעים כל שאלה ומקליטים תשובה.", badge: "מומלץ" },
+    { v: "cobe" as const, icon: LayoutTemplate, title: "בגרות בעל פה באנגלית (COBE)", body: "שלושת החלקים של הבחינה באנגלית, עם שאלות לדוגמה שאפשר לשנות." },
   ];
   const modes = [
-    { v: "PRACTICE" as const, title: "תרגול רגיל", body: "בלי לחץ זמן. אפשר לחזור לשאלות ולהקליט שוב." },
-    { v: "SIMULATION" as const, title: "כמו בבחינה", body: "זמן הכנה לכל שאלה, הקלטה שמתחילה לבד וזמן כולל של 30 דקות." },
+    { v: "PRACTICE" as const, title: "תרגול", body: "בלי לחץ זמן. אפשר לחזור לשאלות ולהקליט שוב." },
+    { v: "SIMULATION" as const, title: "מבחן", body: "זמן הכנה לכל שאלה, הקלטה שמתחילה לבד וזמן כולל למבחן." },
   ];
   return (
     <form action={action} className="space-y-6">
@@ -56,9 +57,16 @@ export function NewExamForm() {
       </section>
 
       <Card className="space-y-6 p-5">
-        <Field label="2. שם המבחן" htmlFor="title">
-          <Input id="title" name="title" required placeholder="לדוגמה: תרגול 1 – Technology" className="h-11 text-base" />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
+          <Field label="2. שם המבחן" htmlFor="title">
+            <Input id="title" name="title" required placeholder="לדוגמה: מלחמת העולם הראשונה – פרק א" className="h-11 text-base" />
+          </Field>
+          {start === "blank" && (
+            <Field label="מקצוע" htmlFor="subject">
+              <SubjectInput id="subject" name="subject" placeholder="לדוגמה: היסטוריה" className="h-11 text-base" />
+            </Field>
+          )}
+        </div>
 
         <fieldset>
           <legend className="mb-2 text-sm font-medium">3. איך התלמידים יענו?</legend>
@@ -75,25 +83,11 @@ export function NewExamForm() {
           </div>
         </fieldset>
 
-        <details className="text-sm">
-          <summary className="cursor-pointer text-ink-3 hover:text-ink">עוד אפשרויות</summary>
-          <div className="mt-3 max-w-xs">
-            <Field label="רמה" htmlFor="level">
-              <Select id="level" name="level" defaultValue="FOUR_AND_FIVE">
-                <option value="FOUR_AND_FIVE">4 ו־5 יח״ל</option>
-                <option value="FIVE_POINTS">5 יח״ל</option>
-                <option value="FOUR_POINTS">4 יח״ל</option>
-                <option value="OTHER">אחר</option>
-              </Select>
-            </Field>
-          </div>
-        </details>
-
         {state && !state.ok && <Alert tone="danger">{state.error}</Alert>}
         <SubmitButton size="lg" pendingText="יוצר…">
           יצירה
         </SubmitButton>
-        <p className="text-xs text-ink-3">הכול ניתן לשינוי אחר כך. זוהי מערכת תרגול עצמאית — אינה מערכת הבחינה הרשמית.</p>
+        <p className="text-xs text-ink-3">הכול ניתן לשינוי אחר כך. זוהי מערכת תרגול עצמאית, ולא מערכת הבחינה הרשמית.</p>
       </Card>
     </form>
   );

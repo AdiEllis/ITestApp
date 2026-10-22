@@ -56,6 +56,8 @@ export default defineConfig({
       STORAGE_DRIVER: "local",
       STORAGE_LOCAL_DIR: "./e2e/.tmp/storage",
       ALLOW_TEACHER_SIGNUP: "true",
+      // Automatic read-aloud with a test tone instead of a paid voice service.
+      TTS_PROVIDER: "fake",
       ...s3Env,
     },
   },

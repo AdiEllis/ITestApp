@@ -20,7 +20,7 @@ export function AddStudents({ classroomId, className, google, joinUrl }: { class
 function AddStudentsGoogle({ classroomId, className, joinUrl }: { classroomId: string; className: string; joinUrl: string }) {
   const [tab, setTab] = useState<"link" | "email">("link");
   const [state, action] = useActionState(addStudentsByEmailAction.bind(null, classroomId), undefined);
-  const wa = `https://wa.me/?text=${encodeURIComponent(`הצטרפות לכיתה ${className} לתרגול בעל פה באנגלית:\n${joinUrl}`)}`;
+  const wa = `https://wa.me/?text=${encodeURIComponent(`הצטרפות לכיתה ${className} לתרגול ומבחנים בעל פה:\n${joinUrl}`)}`;
   return (
     <Card>
       <CardHeader title="הוספת תלמידים" description="התלמידים נכנסים עם חשבון ה־Google שלהם — בלי שם משתמש ובלי סיסמה" />

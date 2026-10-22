@@ -71,7 +71,7 @@ export default async function TeacherDashboard() {
   const steps: StartStep[] = [
     { title: "יצירת כיתה", body: "נותנים שם לכיתה — למשל י״א 3.", href: "/t/classes", cta: "יצירת כיתה", done: classes > 0 },
     { title: "צירוף תלמידים", body: "שולחים לקבוצת הכיתה קישור הצטרפות. כל תלמיד נכנס עם Google.", href: firstClass ? `/t/classes/${firstClass.id}` : "/t/classes", cta: "לקישור ההצטרפות", done: enrolled > 0 },
-    { title: "יצירת מבחן ופרסום", body: "מתחילים מתבנית COBE מוכנה ומשנים מה שרוצים.", href: "/t/exams/new", cta: "מבחן חדש", done: publishedExams > 0 },
+    { title: "יצירת מבחן ופרסום", body: "כותבים שאלות על החומר שנלמד, ומאשרים את ההקראה של כל שאלה.", href: "/t/exams/new", cta: "מבחן חדש", done: publishedExams > 0 },
     { title: "שליחת המבחן לכיתה", body: "בוחרים מבחן, כיתה ותאריך הגשה.", href: "/t/assignments/new", cta: "הקצאה לכיתה", done: assignments > 0 },
     { title: "בדיקת הגשה ראשונה", body: "מאזינים, בוחרים רמה בכל קריטריון ומפרסמים משוב.", href: "/t/review", cta: "לבדיקת הגשות", done: gradedCount > 0 },
   ];

@@ -9,7 +9,11 @@ export interface BuilderQuestion {
   prompt: string;
   subQuestions: string[];
   instructions: string | null;
+  readText: string | null;
   audioId: string | null;
+  audioSource: "TTS" | "TEACHER" | null;
+  audioText: string | null;
+  audioApproved: boolean;
   videoId: string | null;
   imageId: string | null;
   videoUrl: string | null;
@@ -35,6 +39,7 @@ export interface BuilderSection {
 export interface BuilderExam {
   title: string;
   description: string | null;
+  subject: string | null;
   level: "FOUR_POINTS" | "FIVE_POINTS" | "FOUR_AND_FIVE" | "OTHER";
   mode: "PRACTICE" | "SIMULATION";
   topics: string[];
@@ -54,6 +59,7 @@ export function toBuilderState(exam: ExamWithContent): { exam: BuilderExam; medi
     exam: {
       title: exam.title,
       description: exam.description,
+      subject: exam.subject,
       level: exam.level,
       mode: exam.mode,
       topics: exam.topics,
@@ -82,7 +88,11 @@ export function toBuilderState(exam: ExamWithContent): { exam: BuilderExam; medi
               prompt: q.prompt,
               subQuestions: q.subQuestions,
               instructions: q.instructions,
+              readText: q.readText,
               audioId: q.audioId,
+              audioSource: q.audioSource === "TTS" ? "TTS" : q.audioSource === "TEACHER" ? "TEACHER" : null,
+              audioText: q.audioText,
+              audioApproved: q.audioApproved,
               videoId: q.videoId,
               imageId: q.imageId,
               videoUrl: q.videoUrl,

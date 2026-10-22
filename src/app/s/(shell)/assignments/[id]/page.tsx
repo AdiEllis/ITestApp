@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { isInSeb } from "@/lib/seb";
+import { SebRequired } from "@/components/seb-required";
 import { ArrowRight, Clock, Layers, RotateCcw } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -32,6 +35,7 @@ export default async function AssignmentIntro({ params }: { params: Promise<{ id
   const settings = parseSettings(exam.settings);
   const simulation = exam.mode === "SIMULATION";
   const returned = attempts[0]?.status === "RETURNED" ? attempts[0] : null;
+  const sebBlocked = assignment.requireSeb && !isInSeb((await headers()).get("user-agent"), assignment.sebKey);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -40,7 +44,7 @@ export default async function AssignmentIntro({ params }: { params: Promise<{ id
       </Link>
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={simulation ? "brand" : "neutral"}>{simulation ? "סימולציה" : "תרגול"}</Badge>
+          <Badge tone={simulation ? "brand" : "neutral"}>{simulation ? "מבחן" : "תרגול"}</Badge>
           <span className="text-sm text-ink-3">{classroom?.name}</span>
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight" dir="auto">
@@ -90,7 +94,9 @@ export default async function AssignmentIntro({ params }: { params: Promise<{ id
 
       {simulation && <p className="text-xs leading-relaxed text-ink-3">{SIMULATION_DISCLAIMER}</p>}
 
-      {inProgress ? (
+      {sebBlocked ? (
+        <SebRequired inline />
+      ) : inProgress ? (
         <StartPanel assignmentId={id} resume requireMicCheck={false} />
       ) : avail.ok || returned ? (
         <StartPanel assignmentId={id} requireMicCheck={simulation} />

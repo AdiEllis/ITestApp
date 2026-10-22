@@ -39,7 +39,7 @@ export default async function RubricsPage() {
                 <p className="font-medium">
                   {r.name} {r.ownerId === null && <Badge>מערכת</Badge>}
                 </p>
-                <p className="mt-0.5 text-sm text-ink-3" lang="en" dir="ltr" style={{ textAlign: "right" }}>
+                <p className="mt-0.5 text-sm text-ink-3" dir="auto" style={{ textAlign: "start" }}>
                   {criteria.map((c) => `${c.label} ${c.weight}%`).join(" · ")}
                 </p>
                 {r.ownerId !== null && <p className="text-xs text-ink-3">בשימוש ב־{r._count.exams} מבחנים</p>}

@@ -14,6 +14,7 @@ export function LimitedMedia({
   used,
   onPlay,
   label,
+  autoPlay = false,
 }: {
   src: string;
   mimeType: string;
@@ -22,6 +23,8 @@ export function LimitedMedia({
   /** returns false if the server refused the play */
   onPlay: () => Promise<boolean>;
   label: string;
+  /** Start playing when shown (only if no play was used yet). */
+  autoPlay?: boolean;
 }) {
   const ref = useRef<HTMLMediaElement | null>(null);
   const [count, setCount] = useState(used);
@@ -55,6 +58,7 @@ export function LimitedMedia({
     src,
     controls: true,
     preload: "metadata" as const,
+    autoPlay: autoPlay && used === 0 && (limit === null || limit > 0),
     controlsList: "nodownload noplaybackrate",
     onPlay: handlePlay,
     onEnded: () => limit !== null && count >= limit && setBlocked(true),

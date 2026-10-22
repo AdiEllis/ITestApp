@@ -13,6 +13,7 @@ import { formatDateTime, formatScore, toLocalInput } from "@/lib/format";
 import { MODE_LABELS } from "@/lib/exam-types";
 import { deleteAssignmentAction } from "../../_actions/assignments";
 import { AssignmentSettings } from "./settings";
+import { SebPanel } from "./seb-panel";
 
 type RowStatus = "not_started" | "in_progress" | "submitted" | "draft" | "published" | "returned";
 const STATUS: Record<RowStatus, { label: string; tone: Tone }> = {
@@ -139,11 +140,16 @@ export default async function AssignmentPage({ params, searchParams }: { params:
             </div>
           )}
         </Card>
-        <Card className="h-fit p-5">
-          <h2 className="mb-4 text-[15px] font-semibold">הגדרות משימה</h2>
-          <AssignmentSettings id={id} dueAt={toLocalInput(assignment.dueAt)} allowLate={assignment.allowLate} maxAttempts={assignment.maxAttempts} />
-          <p className="mt-4 text-xs text-ink-3">נפתח {formatDateTime(assignment.opensAt)}</p>
-        </Card>
+        <div className="space-y-6">
+          <Card className="h-fit p-5">
+            <SebPanel id={id} requireSeb={assignment.requireSeb} quitPassword={assignment.sebQuitPassword} />
+          </Card>
+          <Card className="h-fit p-5">
+            <h2 className="mb-4 text-[15px] font-semibold">הגדרות משימה</h2>
+            <AssignmentSettings id={id} dueAt={toLocalInput(assignment.dueAt)} allowLate={assignment.allowLate} maxAttempts={assignment.maxAttempts} />
+            <p className="mt-4 text-xs text-ink-3">נפתח {formatDateTime(assignment.opensAt)}</p>
+          </Card>
+        </div>
       </div>
     </>
   );

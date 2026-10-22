@@ -1,4 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { isInSeb } from "@/lib/seb";
+import { SebRequired } from "@/components/seb-required";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getOwnAttempt } from "@/lib/authz";
@@ -16,6 +19,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   if (!found) notFound();
   const attempt = await finalizeIfExpired(found);
   if (attempt.status !== "IN_PROGRESS") redirect(found.status === "IN_PROGRESS" ? `/s/attempts/${id}?timeout=1` : `/s/attempts/${id}`);
+  if (found.assignment.requireSeb && !isInSeb((await headers()).get("user-agent"), found.assignment.sebKey)) return <SebRequired />;
 
   const answers = await db.answer.findMany({ where: { attemptId: id }, include: { recording: { select: { mimeType: true } } } });
   const initialAnswers: Record<string, SavedAnswer> = {};

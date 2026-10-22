@@ -7,7 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { rubricCriteriaSchema } from "@/lib/exam-types";
-import { defaultCobeRubric } from "@/lib/cobe";
+import { generalOralRubric } from "@/lib/default-rubrics";
 import { audit } from "@/lib/audit";
 
 export async function createRubricAction(fromId?: string) {
@@ -18,7 +18,7 @@ export async function createRubricAction(fromId?: string) {
       ownerId: user.id,
       name: src ? `${src.name} (עותק)` : "מחוון חדש",
       description: src?.description ?? null,
-      criteria: (src?.criteria ?? defaultCobeRubric()) as Prisma.InputJsonValue,
+      criteria: (src?.criteria ?? generalOralRubric()) as Prisma.InputJsonValue,
     },
   });
   redirect(`/t/rubrics/${r.id}`);
