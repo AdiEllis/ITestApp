@@ -25,6 +25,10 @@ export const env = {
   get allowTeacherSignup() {
     return (process.env.ALLOW_TEACHER_SIGNUP ?? "true") === "true";
   },
+  /** Google sign-in is on when both OAuth credentials are configured. */
+  get googleEnabled() {
+    return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  },
   get storageDriver(): "local" | "s3" {
     return process.env.STORAGE_DRIVER === "s3" ? "s3" : "local";
   },

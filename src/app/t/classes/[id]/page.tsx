@@ -139,7 +139,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
           </Card>
-          <AddStudents classroomId={id} className={classroom.name} />
+          <AddStudents classroomId={id} className={classroom.name} google={env.googleEnabled} joinUrl={joinUrl} />
         </div>
 
         <div className="space-y-6">

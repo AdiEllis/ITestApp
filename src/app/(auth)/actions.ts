@@ -34,7 +34,14 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
     return { error: "יותר מדי ניסיונות התחברות. נסו שוב בעוד מספר דקות." };
   const r = await authenticate(identifier, password);
   if (!r.ok) {
-    return { error: r.reason === "locked" ? "החשבון ננעל זמנית עקב ניסיונות כושלים. נסו שוב בעוד 15 דקות." : "שם המשתמש או הסיסמה שגויים" };
+    return {
+      error:
+        r.reason === "locked"
+          ? "החשבון ננעל זמנית עקב ניסיונות כושלים. נסו שוב בעוד 15 דקות."
+          : r.reason === "google"
+            ? "החשבון הזה מתחבר עם Google. לחצו על \"התחברות עם Google\"."
+            : "שם המשתמש או הסיסמה שגויים",
+    };
   }
   await createSession(r.user.id);
   await audit(r.user.id, "auth.login");
@@ -171,6 +178,7 @@ export async function changePasswordAction(_: FormState, form: FormData): Promis
   const pw = passwordProblem(next);
   if (pw) return { error: pw };
   const full = await db.user.findUniqueOrThrow({ where: { id: user.id } });
+  if (!full.passwordHash) return { error: "החשבון הזה מתחבר עם Google ואין לו סיסמה" };
   if (!(await verifyPassword(current, full.passwordHash))) return { error: "הסיסמה הנוכחית שגויה" };
   if (current === next) return { error: "הסיסמה החדשה חייבת להיות שונה מהנוכחית" };
   await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next), mustChangePassword: false } });

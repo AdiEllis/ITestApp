@@ -163,3 +163,52 @@ export async function deleteStudentAction(studentId: string, _: FormState): Prom
   }
   redirect("/t/classes");
 }
+
+const emailRe = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+
+/**
+ * Adds students by e-mail (one per line, optionally "name, email"). No password is created:
+ * the student signs in with the Google account of that e-mail.
+ */
+export async function addStudentsByEmailAction(classroomId: string, _: FormState, form: FormData): Promise<FormState> {
+  try {
+    const user = await teacher();
+    const classroom = await getOwnClassroom(user, classroomId);
+    const lines = String(form.get("emails") ?? "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return { error: "יש להזין לפחות כתובת מייל אחת" };
+    if (lines.length > 80) return { error: "ניתן להוסיף עד 80 תלמידים בכל פעם" };
+    let added = 0;
+    const problems: string[] = [];
+    for (const line of lines) {
+      const email = line.match(/[^\s,;<>]+@[^\s,;<>]+/)?.[0]?.toLowerCase();
+      if (!email || !emailRe.test(email)) {
+        problems.push(line);
+        continue;
+      }
+      const name = line.replace(email, "").replace(/[<>,;]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || email;
+      const existing = await db.user.findFirst({ where: { OR: [{ email }, { username: email }] } });
+      if (existing && (existing.role !== "STUDENT" || existing.schoolId !== classroom.schoolId)) {
+        problems.push(email);
+        continue;
+      }
+      const student =
+        existing ??
+        (await db.user.create({ data: { username: email, email, name, role: "STUDENT", schoolId: classroom.schoolId } }));
+      await db.enrollment.upsert({
+        where: { classroomId_studentId: { classroomId, studentId: student.id } },
+        create: { classroomId, studentId: student.id },
+        update: {},
+      });
+      added++;
+    }
+    await audit(user.id, "student.add_by_email", { type: "Classroom", id: classroomId }, { added, problems: problems.length });
+    revalidatePath(`/t/classes/${classroomId}`);
+    if (problems.length) return { error: `נוספו ${added}. לא נוספו (כתובת לא תקינה או חשבון של מורה/בית ספר אחר): ${problems.join(", ")}` };
+    return { ok: `נוספו ${added} תלמידים. הם נכנסים עם "התחברות עם Google" באותו מייל.` };
+  } catch (e) {
+    return fail(e);
+  }
+}

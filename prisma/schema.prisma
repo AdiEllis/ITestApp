@@ -93,7 +93,10 @@ model User {
   username           String   @unique
   email              String?  @unique
   name               String
-  passwordHash       String
+  // null for accounts that only sign in with Google
+  passwordHash       String?
+  // Google account id ("sub") — set on first Google sign-in
+  googleSub          String?  @unique
   role               Role
   schoolId           String?
   school             School?  @relation(fields: [schoolId], references: [id], onDelete: Restrict)

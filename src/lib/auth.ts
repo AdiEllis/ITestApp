@@ -92,6 +92,7 @@ export async function authenticate(identifier: string, password: string) {
     return { ok: false as const, reason: "invalid" as const };
   }
   if (user.lockedUntil && user.lockedUntil > new Date()) return { ok: false as const, reason: "locked" as const };
+  if (!user.passwordHash) return { ok: false as const, reason: "google" as const };
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
     const failed = user.failedLogins + 1;
