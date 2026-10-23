@@ -37,6 +37,12 @@ export function recordingSupported(): MicError | null {
   return null;
 }
 
+/** iPhone/iPad, including iPads that report a Mac user agent. */
+function isIOS() {
+  if (typeof navigator === "undefined") return false;
+  return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1);
+}
+
 export interface RecordingResult {
   blob: Blob;
   mimeType: string;
@@ -188,6 +194,17 @@ export function useRecorder() {
         const type = (rec.mimeType || mimeType || chunks[0]?.type || "audio/webm").split(";")[0];
         const blob = new Blob(chunks, { type });
         const result: RecordingResult = { blob, mimeType: type, durationSec: Math.round(durationSec * 10) / 10, peak: peakRef.current };
+        // While the mic is open, iPhone plays sound through the quiet earpiece, so the recording the
+        // student (or teacher) plays back right away sounds silent. Close the mic after each take;
+        // the next "start recording" opens it again.
+        if (isIOS()) {
+          cancelAnimationFrame(rafRef.current);
+          streamRef.current?.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+          ctxRef.current?.close().catch(() => undefined);
+          ctxRef.current = null;
+          analyserRef.current = null;
+        }
         setState((s) => (s === "recording" ? (streamRef.current?.active ? "ready" : "idle") : s));
         recRef.current = null;
         if (stopResolve.current) {

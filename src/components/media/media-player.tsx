@@ -1,11 +1,12 @@
 "use client";
 import { FileText, Download } from "lucide-react";
 import { mediaCategory } from "@/lib/files";
+import { RecordingAudio } from "./recording-audio";
 
 export function MediaPlayer({ id, mimeType, name, className }: { id: string; mimeType: string; name?: string | null; className?: string }) {
   const src = `/api/media/${id}`;
   const cat = mediaCategory(mimeType);
-  if (cat === "audio") return <audio controls preload="metadata" src={src} className={className ?? "w-full"} />;
+  if (cat === "audio") return <RecordingAudio src={src} className={className ?? "w-full"} />;
   if (cat === "video")
     return <video controls playsInline preload="metadata" src={src} className={className ?? "aspect-video w-full rounded-lg bg-black"} />;
   // eslint-disable-next-line @next/next/no-img-element

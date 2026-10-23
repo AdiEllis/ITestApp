@@ -4,14 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { AppError, getOwnAssignment, getOwnClassroom, getOwnExam, getReviewableAttempt } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { fromLocalInput } from "@/lib/format";
 import { snapshotOf } from "@/lib/attempts";
-import { questionScore, rubricPercent, totalGrade, round2, countedQuestions } from "@/lib/scoring";
+import { totalGrade, round2, countedQuestions } from "@/lib/scoring";
 import { storage } from "@/lib/storage";
 import type { FormState } from "@/components/ui/form-message";
 import { newQuitPassword, newSebKey } from "@/lib/seb";
@@ -155,12 +154,14 @@ const gradeSchema = z.object({
     )
     .max(60),
   publish: z.boolean(),
+  /** The teacher's final grade; when left out it is the sum of the question scores. */
+  finalScore: z.number().min(0).max(100).nullable().optional(),
 });
 export type GradeInput = z.infer<typeof gradeSchema>;
 
 /**
- * Saves the teacher's grading (draft or published). Scores are computed on the server from
- * rubric criteria (or a direct score when the exam has no rubric). No automated scoring is used.
+ * Saves the teacher's grading (draft or published): a score and a comment per question, and a
+ * final grade and comment. No automated scoring is used.
  */
 export async function saveGradesAction(attemptId: string, input: GradeInput): Promise<{ ok: boolean; error?: string; total?: number }> {
   try {
@@ -172,38 +173,31 @@ export async function saveGradesAction(attemptId: string, input: GradeInput): Pr
     const snapshot = snapshotOf(attempt);
     const choices = (attempt.choices ?? {}) as Record<string, string>;
     const counted = new Map(countedQuestions(snapshot, choices).map((q) => [q.questionId, q.points]));
-    const criteria = snapshot.rubric?.criteria ?? null;
     const scores: Record<string, number | null> = {};
 
     await db.$transaction(async (tx) => {
       for (const a of d.answers) {
         const points = counted.get(a.questionId);
         if (points === undefined) continue; // not part of this attempt's graded questions
-        let score: number | null = null;
-        let criterionScores: Record<string, number | null> | null = null;
-        if (criteria) {
-          criterionScores = {};
-          for (const c of criteria) criterionScores[c.key] = a.criterionScores?.[c.key] ?? null;
-          const pct = rubricPercent(criteria, criterionScores);
-          score = pct === null ? null : questionScore(points, pct);
-        } else if (a.score !== null) {
-          score = round2(Math.min(points, Math.max(0, a.score)));
-        }
+        const score = a.score === null ? null : round2(Math.min(points, Math.max(0, a.score)));
         scores[a.questionId] = score;
         await tx.answer.upsert({
           where: { attemptId_questionId: { attemptId, questionId: a.questionId } },
-          create: { attemptId, questionId: a.questionId, score, criterionScores: (criterionScores ?? undefined) as Prisma.InputJsonValue | undefined, feedback: a.feedback?.trim() || null },
-          update: { score, criterionScores: (criterionScores ?? undefined) as Prisma.InputJsonValue | undefined, feedback: a.feedback?.trim() || null },
+          create: { attemptId, questionId: a.questionId, score, feedback: a.feedback?.trim() || null },
+          update: { score, feedback: a.feedback?.trim() || null },
         });
       }
       if (d.publish) {
         const missing = [...counted.keys()].filter((qid) => !qid.startsWith("__unchosen__") && (scores[qid] === null || scores[qid] === undefined));
         // Unanswered questions may be left ungraded (they count as 0); answered ones must be graded.
-        const answered = await tx.answer.findMany({ where: { attemptId, recordingId: { not: null } }, select: { questionId: true } });
+        const answered = await tx.answer.findMany({
+          where: { attemptId, OR: [{ recordingId: { not: null } }, { textAnswer: { not: null } }] },
+          select: { questionId: true },
+        });
         const answeredSet = new Set(answered.map((x) => x.questionId));
         if (missing.some((qid) => answeredSet.has(qid))) throw new AppError(400, "יש לתת ציון לכל השאלות שנענו לפני פרסום");
       }
-      const total = totalGrade(snapshot, choices, scores);
+      const total = d.finalScore ?? totalGrade(snapshot, choices, scores);
       await tx.attempt.update({
         where: { id: attemptId },
         data: {
@@ -218,7 +212,7 @@ export async function saveGradesAction(attemptId: string, input: GradeInput): Pr
     await audit(user.id, d.publish ? "grade.publish" : "grade.draft", { type: "Attempt", id: attemptId });
     revalidatePath(`/t/review/${attemptId}`);
     revalidatePath(`/t/assignments/${attempt.assignmentId}`);
-    return { ok: true, total: totalGrade(snapshot, choices, scores) };
+    return { ok: true, total: d.finalScore ?? totalGrade(snapshot, choices, scores) };
   } catch (e) {
     if (e instanceof AppError) return { ok: false, error: e.message };
     if (e instanceof z.ZodError) return { ok: false, error: "נתונים לא תקינים" };

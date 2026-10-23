@@ -47,8 +47,10 @@ export const POST = withUser<{ params: Promise<{ id: string }> }>(async (req, us
       const current = choices[body.sectionId];
       if (current && current !== body.questionId) {
         // Changing topic is only allowed while nothing was recorded for the current one.
-        const recorded = await tx.answer.count({ where: { attemptId: id, questionId: current, recordingId: { not: null } } });
-        if (recorded > 0) throw new AppError(409, "כבר הקלטת תשובה לנושא שבחרת");
+        const answered = await tx.answer.count({
+          where: { attemptId: id, questionId: current, OR: [{ recordingId: { not: null } }, { textAnswer: { not: null } }] },
+        });
+        if (answered > 0) throw new AppError(409, "כבר ענית על הנושא שבחרת");
       }
       choices = { ...choices, [body.sectionId]: body.questionId };
     } else if (body.type === "position") {

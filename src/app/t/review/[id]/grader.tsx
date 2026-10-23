@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Save, Send, Undo2 } from "lucide-react";
 import type { ExamSnapshot } from "@/lib/exam-types";
-import { countedQuestions, questionScore, rubricPercent, totalGrade } from "@/lib/scoring";
+import { countedQuestions, round2, totalGrade } from "@/lib/scoring";
 import { formatDateTime, formatDuration, formatScore } from "@/lib/format";
 import { returnAttemptAction, saveGradesAction, unpublishGradesAction } from "../../_actions/assignments";
 import { Card } from "@/components/ui/card";
@@ -24,12 +24,13 @@ interface AnswerRow {
   recordingMime: string | null;
   recordingCount: number;
   durationSec: number | null;
+  textAnswer: string | null;
   criterionScores: Record<string, number | null> | null;
   score: number | null;
   feedback: string | null;
 }
 
-type Draft = Record<string, { criterionScores: Record<string, number | null>; score: number | null; feedback: string }>;
+type Draft = Record<string, { score: number | null; feedback: string }>;
 
 export function Grader(props: {
   attempt: {
@@ -40,6 +41,7 @@ export function Grader(props: {
     submittedAt: string | null;
     late: boolean;
     overallFeedback: string | null;
+    totalScore: number | null;
     choices: Record<string, string>;
     returnNote: string | null;
   };
@@ -54,14 +56,13 @@ export function Grader(props: {
 }) {
   const { snapshot, attempt } = props;
   const router = useRouter();
-  const criteria = snapshot.rubric?.criteria ?? null;
   const counted = useMemo(() => countedQuestions(snapshot, attempt.choices), [snapshot, attempt.choices]);
   const byQ = useMemo(() => new Map(props.answers.map((a) => [a.questionId, a])), [props.answers]);
   const [draft, setDraft] = useState<Draft>(() => {
     const d: Draft = {};
     for (const c of counted) {
       const a = byQ.get(c.questionId);
-      d[c.questionId] = { criterionScores: { ...(a?.criterionScores ?? {}) }, score: a?.score ?? null, feedback: a?.feedback ?? "" };
+      d[c.questionId] = { score: a?.score ?? null, feedback: a?.feedback ?? "" };
     }
     return d;
   });
@@ -79,14 +80,19 @@ export function Grader(props: {
     for (const c of counted) {
       const d = draft[c.questionId];
       if (!d) continue;
-      if (criteria) {
-        const pct = rubricPercent(criteria, d.criterionScores);
-        out[c.questionId] = pct === null ? null : questionScore(c.points, pct);
-      } else out[c.questionId] = d.score === null ? null : Math.min(c.points, d.score);
+      out[c.questionId] = d.score === null ? null : Math.min(c.points, d.score);
     }
     return out;
-  }, [draft, counted, criteria]);
-  const total = totalGrade(snapshot, attempt.choices, scores);
+  }, [draft, counted]);
+  const sum = totalGrade(snapshot, attempt.choices, scores);
+  // The final grade follows the question scores until the teacher types her own.
+  const [finalInput, setFinalInput] = useState<string | null>(() => {
+    if (attempt.totalScore === null) return null;
+    const initialSum = totalGrade(snapshot, attempt.choices, Object.fromEntries(props.answers.map((a) => [a.questionId, a.score])));
+    return round2(attempt.totalScore) === round2(initialSum) ? null : String(attempt.totalScore);
+  });
+  const finalScore = finalInput === null || finalInput.trim() === "" ? null : Math.min(100, Math.max(0, Number(finalInput) || 0));
+  const total = finalScore ?? sum;
 
   const update = (qid: string, patch: Partial<Draft[string]>) => {
     setDraft((cur) => ({ ...cur, [qid]: { ...cur[qid], ...patch } }));
@@ -99,7 +105,8 @@ export function Grader(props: {
       const r = await saveGradesAction(attempt.id, {
         overallFeedback: overall,
         publish,
-        answers: Object.entries(draft).map(([questionId, d]) => ({ questionId, criterionScores: criteria ? d.criterionScores : null, score: criteria ? null : d.score, feedback: d.feedback })),
+        finalScore,
+        answers: Object.entries(draft).map(([questionId, d]) => ({ questionId, criterionScores: null, score: d.score, feedback: d.feedback })),
       });
       if (!r.ok) setMessage({ tone: "danger", text: r.error ?? "השמירה נכשלה" });
       else {
@@ -174,7 +181,8 @@ export function Grader(props: {
             const s = snapshot.sections.find((x) => x.id === c.sectionId)!;
             const qq = s.questions.find((x) => x.id === c.questionId);
             const graded = scores[c.questionId] !== null && scores[c.questionId] !== undefined;
-            const has = !!byQ.get(c.questionId)?.recordingId;
+            const a = byQ.get(c.questionId);
+            const has = !!a?.recordingId || !!a?.textAnswer;
             return (
               <button
                 key={c.questionId}
@@ -194,7 +202,7 @@ export function Grader(props: {
                     {s.title.replace(/^Part\s+/i, "")} · {qq?.title || `Q${i + 1}`}
                   </span>
                   <span className="block text-xs text-ink-3">
-                    {!has ? "ללא הקלטה" : graded ? `${formatScore(scores[c.questionId])}/${c.points}` : `${c.points} נק׳`}
+                    {!has ? "לא נענתה" : graded ? `${formatScore(scores[c.questionId])}/${c.points}` : `${c.points} נק׳`}
                   </span>
                 </span>
               </button>
@@ -225,12 +233,20 @@ export function Grader(props: {
               ) : (
                 <p className="text-sm text-warn">התלמיד/ה לא בחר/ה נושא בחלק זה</p>
               )}
-              <div className="rounded-xl bg-subtle p-4">
+              <div className="space-y-3 rounded-xl bg-subtle p-4">
+                {ans?.textAnswer && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-ink-3">תשובה בהקלדה</p>
+                    <p className="whitespace-pre-wrap rounded-lg bg-surface px-3 py-2 text-[15px] leading-relaxed" dir="auto">
+                      {ans.textAnswer}
+                    </p>
+                  </div>
+                )}
                 {ans?.recordingId ? (
                   <RecordingPlayer key={ans.recordingId} src={`/api/media/${ans.recordingId}`} />
-                ) : (
-                  <p className="text-sm text-ink-2">לא הוקלטה תשובה לשאלה זו (0 נקודות).</p>
-                )}
+                ) : !ans?.textAnswer ? (
+                  <p className="text-sm text-ink-2">אין תשובה לשאלה זו (0 נקודות).</p>
+                ) : null}
                 {ans?.recordingId && (
                   <p className="mt-2 text-xs text-ink-3">
                     אורך {formatDuration(ans.durationSec)} · {ans.recordingCount} {ans.recordingCount === 1 ? "הקלטה" : "הקלטות (נשמרה האחרונה)"}
@@ -241,95 +257,25 @@ export function Grader(props: {
 
             {q && (
               <Card className="space-y-5 p-5">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold">הערכה</h2>
-                  <span className="text-sm text-ink-2">
-                    ציון לשאלה:{" "}
-                    <span className="text-lg font-semibold text-ink tabular">
-                      {scores[cur.questionId] === null || scores[cur.questionId] === undefined ? "—" : formatScore(scores[cur.questionId])}
-                    </span>{" "}
-                    / {cur.points}
-                  </span>
-                </div>
-                <fieldset disabled={readOnly} className="space-y-5">
-                  {criteria ? (
-                    criteria.map((c) => {
-                      const v = draft[cur.questionId]?.criterionScores[c.key] ?? null;
-                      const band = c.bands.find((b) => v !== null && v >= b.min && v <= b.max);
-                      return (
-                        <div key={c.key} className="space-y-2">
-                          <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-sm font-medium">
-                              <span dir="auto">{c.label}</span> <span className="text-ink-3">· {c.weight}%</span>
-                            </p>
-                            <label className="flex items-center gap-2 text-sm">
-                              <span className="sr-only">ציון {c.label}</span>
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                inputMode="numeric"
-                                value={v ?? ""}
-                                onChange={(e) =>
-                                  update(cur.questionId, {
-                                    criterionScores: {
-                                      ...draft[cur.questionId].criterionScores,
-                                      [c.key]: e.target.value === "" ? null : Math.min(100, Math.max(0, Number(e.target.value))),
-                                    },
-                                  })
-                                }
-                                className="h-9 w-20 rounded-lg border border-line-strong bg-surface px-2 text-center tabular"
-                              />
-                              <span className="text-ink-3">/100</span>
-                            </label>
-                          </div>
-                          {c.bands.length > 0 && (
-                            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                              {c.bands.map((b) => {
-                                const selected = band === b;
-                                return (
-                                  <button
-                                    key={b.label}
-                                    type="button"
-                                    title={b.descriptor}
-                                    onClick={() =>
-                                      update(cur.questionId, {
-                                        criterionScores: { ...draft[cur.questionId].criterionScores, [c.key]: Math.round((b.min + b.max) / 2) },
-                                      })
-                                    }
-                                    className={cn(
-                                      "rounded-lg border px-2 py-1.5 text-xs transition-colors",
-                                      selected ? "border-brand bg-brand-soft font-semibold text-brand-strong" : "border-line text-ink-2 hover:border-line-strong",
-                                    )}
-                                  >
-                                    {b.label} <span className="tabular text-ink-3">{b.min}–{b.max}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {band && <En as="p" className="text-xs leading-relaxed text-ink-3">{band.descriptor}</En>}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <label className="flex items-center gap-2 text-sm">
-                      ציון (0–{cur.points})
-                      <input
-                        type="number"
-                        min={0}
-                        max={cur.points}
-                        value={draft[cur.questionId]?.score ?? ""}
-                        onChange={(e) => update(cur.questionId, { score: e.target.value === "" ? null : Math.min(cur.points, Math.max(0, Number(e.target.value))) })}
-                        className="h-9 w-24 rounded-lg border border-line-strong bg-surface px-2 text-center tabular"
-                      />
-                    </label>
-                  )}
+                <fieldset disabled={readOnly} className="space-y-4">
+                  <label className="flex items-center gap-2 text-[15px] font-semibold">
+                    ציון לשאלה
+                    <input
+                      type="number"
+                      min={0}
+                      max={cur.points}
+                      inputMode="decimal"
+                      value={draft[cur.questionId]?.score ?? ""}
+                      onChange={(e) => update(cur.questionId, { score: e.target.value === "" ? null : Math.min(cur.points, Math.max(0, Number(e.target.value))) })}
+                      className="h-10 w-24 rounded-lg border border-line-strong bg-surface px-2 text-center text-base font-normal tabular"
+                    />
+                    <span className="font-normal text-ink-3">מתוך {cur.points}</span>
+                  </label>
                   <div className="space-y-1.5">
                     <label htmlFor={`fb-${cur.questionId}`} className="text-sm font-medium">
-                      משוב לשאלה
+                      הערה לשאלה (לא חובה)
                     </label>
-                    <Textarea id={`fb-${cur.questionId}`} rows={3} dir="auto" value={draft[cur.questionId]?.feedback ?? ""} onChange={(e) => update(cur.questionId, { feedback: e.target.value })} placeholder="משוב לתלמיד/ה (עברית או אנגלית)" />
+                    <Textarea id={`fb-${cur.questionId}`} rows={2} dir="auto" value={draft[cur.questionId]?.feedback ?? ""} onChange={(e) => update(cur.questionId, { feedback: e.target.value })} />
                   </div>
                 </fieldset>
                 <div className="flex justify-between">
@@ -343,11 +289,39 @@ export function Grader(props: {
               </Card>
             )}
 
-            <Card className="space-y-3 p-5">
-              <label htmlFor="overall" className="text-[15px] font-semibold">
-                משוב כללי
-              </label>
-              <Textarea id="overall" rows={3} dir="auto" disabled={readOnly} value={overall} onChange={(e) => (setOverall(e.target.value), setDirty(true))} />
+            <Card className="space-y-4 p-5">
+              <h2 className="text-[15px] font-semibold">ציון סופי</h2>
+              <fieldset disabled={readOnly} className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <label htmlFor="final" className="sr-only">
+                    ציון סופי
+                  </label>
+                  <input
+                    id="final"
+                    type="number"
+                    min={0}
+                    max={100}
+                    inputMode="decimal"
+                    value={finalInput ?? formatScore(sum)}
+                    onChange={(e) => (setFinalInput(e.target.value), setDirty(true))}
+                    className="h-11 w-28 rounded-lg border border-line-strong bg-surface px-2 text-center text-lg font-semibold tabular"
+                  />
+                  <span className="text-ink-3">מתוך 100</span>
+                  {finalInput !== null ? (
+                    <button type="button" onClick={() => (setFinalInput(null), setDirty(true))} className="text-brand hover:underline">
+                      חזרה לסכום השאלות ({formatScore(sum)})
+                    </button>
+                  ) : (
+                    <span className="text-ink-3">· סכום הציונים בשאלות. אפשר לשנות.</span>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="overall" className="text-sm font-medium">
+                    הערה כללית (לא חובה)
+                  </label>
+                  <Textarea id="overall" rows={3} dir="auto" value={overall} onChange={(e) => (setOverall(e.target.value), setDirty(true))} />
+                </div>
+              </fieldset>
             </Card>
 
             {!readOnly && attempt.status === "SUBMITTED" && (
@@ -392,7 +366,7 @@ export function Grader(props: {
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur lg:start-[248px]">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
             <div className="me-auto">
-              <p className="text-xs text-ink-3">ציון כולל (מתוך 100)</p>
+              <p className="text-xs text-ink-3">ציון סופי (מתוך 100)</p>
               <p className="text-xl font-semibold tabular">{formatScore(total)}</p>
             </div>
             {message && <p className={cn("text-sm", message.tone === "ok" ? "text-ok" : "text-danger")} role="status">{message.text}</p>}

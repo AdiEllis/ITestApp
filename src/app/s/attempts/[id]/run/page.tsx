@@ -24,7 +24,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const answers = await db.answer.findMany({ where: { attemptId: id }, include: { recording: { select: { mimeType: true } } } });
   const initialAnswers: Record<string, SavedAnswer> = {};
   for (const a of answers)
-    initialAnswers[a.questionId] = { recordingId: a.recordingId, recordingCount: a.recordingCount, durationSec: a.durationSec, mimeType: a.recording?.mimeType ?? null };
+    initialAnswers[a.questionId] = { recordingId: a.recordingId, recordingCount: a.recordingCount, durationSec: a.durationSec, mimeType: a.recording?.mimeType ?? null, textAnswer: a.textAnswer };
 
   return (
     <ExamRunner
