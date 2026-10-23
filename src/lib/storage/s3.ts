@@ -108,7 +108,20 @@ export const s3Driver: StorageDriver = {
     return Buffer.from(bytes);
   },
   async put(key, body, mimeType) {
-    await s3().send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: body, ContentType: mimeType }));
+    // Upload through a signed URL, the same way browsers upload recordings. Sending the body through
+    // the SDK made Backblaze B2 answer IncompleteBody.
+    const target = await s3Driver.createUploadTarget(key, mimeType, body.length, 300);
+    const res = await fetch(target.url, {
+      method: "PUT",
+      headers: { "Content-Type": mimeType },
+      body: new Uint8Array(body),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const err = new Error(`S3 PUT ${res.status}: ${text.slice(0, 300)}`) as Error & { Code?: string };
+      err.Code = text.match(/<Code>([^<]+)<\/Code>/)?.[1] ?? `HTTP${res.status}`;
+      throw err;
+    }
   },
   async copy(fromKey, toKey) {
     await s3().send(
