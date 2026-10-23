@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -14,6 +15,7 @@ import { questionScore, rubricPercent, totalGrade, round2, countedQuestions } fr
 import { storage } from "@/lib/storage";
 import type { FormState } from "@/components/ui/form-message";
 import { newQuitPassword, newSebKey } from "@/lib/seb";
+import { emailNewAssignment } from "@/lib/email";
 
 const assignSchema = z.object({
   examId: z.string().min(1, "יש לבחור מבחן"),
@@ -83,6 +85,8 @@ export async function createAssignmentAction(_: FormState, form: FormData): Prom
       },
     });
     id = a.id;
+    // Email students after the response, so the teacher doesn't wait for the mail server.
+    if (form.get("notify") === "on" && opensAt <= new Date()) after(() => emailNewAssignment(a));
     await audit(user.id, "assignment.create", { type: "Assignment", id: a.id }, { examId: exam.id, classroomId: classroom.id });
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };

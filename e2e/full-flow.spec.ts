@@ -165,6 +165,9 @@ test.describe.serial("full teacher ↔ student flow", () => {
     const s = state.students[0];
     await loginStudent(page, s, "Student-pass1");
     await expect(page.getByText(state.examTitle)).toBeVisible();
+    // Exams the student hasn't started are marked new, with a count on the tab.
+    await expect(page.getByText("חדש", { exact: true }).first()).toBeVisible();
+    await expect(page.locator('[aria-label$="מבחנים חדשים"]:visible')).toHaveText("1");
     await shot(page, "06-student-home-mobile");
     await page.getByText(state.examTitle).click();
 
