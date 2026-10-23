@@ -104,7 +104,8 @@ export async function submitAttempt(attemptId: string, studentId: string, reason
   return r.count === 1;
 }
 
-export async function assertRecordingAllowed(attempt: Attempt, questionId: string) {
+/** `client` is the transaction when called inside one: on Vercel the pool has a single connection. */
+export async function assertRecordingAllowed(attempt: Attempt, questionId: string, client: Pick<Prisma.TransactionClient, "answer"> = db) {
   if (attempt.status !== "IN_PROGRESS") throw new AppError(409, "המבחן כבר הוגש");
   if (attempt.deadlineAt && attempt.deadlineAt.getTime() + DEADLINE_GRACE_MS < Date.now())
     throw new AppError(409, "הזמן להקלטה הסתיים");
@@ -116,7 +117,7 @@ export async function assertRecordingAllowed(attempt: Attempt, questionId: strin
     if (choices[found.section.id] && choices[found.section.id] !== questionId)
       throw new AppError(409, "כבר בחרת נושא אחר בחלק זה");
   }
-  const answer = await db.answer.findUnique({ where: { attemptId_questionId: { attemptId: attempt.id, questionId } } });
+  const answer = await client.answer.findUnique({ where: { attemptId_questionId: { attemptId: attempt.id, questionId } } });
   const count = answer?.recordingCount ?? 0;
   if (count > 0 && !found.question.allowReRecord) throw new AppError(409, "לא ניתן להקליט מחדש בשאלה זו");
   if (found.question.maxRecordings !== null && count >= found.question.maxRecordings)
@@ -134,7 +135,7 @@ export async function attachRecording(attemptId: string, studentId: string, ques
     await tx.$queryRaw`SELECT id FROM "Attempt" WHERE id = ${attemptId} FOR UPDATE`;
     const attempt = await tx.attempt.findUnique({ where: { id: attemptId } });
     if (!attempt || attempt.studentId !== studentId) throw new AppError(404, "הניסיון לא נמצא");
-    const found = await assertRecordingAllowed(attempt, questionId);
+    const found = await assertRecordingAllowed(attempt, questionId, tx);
     if (durationSec !== null && durationSec > found.question.maxRecordSec + 15)
       throw new AppError(400, "ההקלטה ארוכה מהזמן המותר");
 

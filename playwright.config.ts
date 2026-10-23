@@ -15,6 +15,8 @@ const s3Env: Record<string, string> =
       }
     : {};
 const DB = process.env.E2E_DATABASE_URL ?? "postgresql://cobe:cobe@localhost:5432/cobe_e2e?schema=public";
+// The app server gets one database connection, as on Vercel (src/lib/db.ts).
+const APP_DB = `${DB}${DB.includes("?") ? "&" : "?"}connection_limit=1&pool_timeout=5`;
 
 /** Chromium with a fake microphone: getUserMedia returns a real generated audio tone. */
 const fakeMic = ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"];
@@ -50,7 +52,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
-      DATABASE_URL: DB,
+      DATABASE_URL: APP_DB,
       APP_URL: `http://localhost:${PORT}`,
       APP_SECRET: "e2e-secret-e2e-secret-e2e-secret-e2e",
       STORAGE_DRIVER: "local",
