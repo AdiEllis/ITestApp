@@ -16,6 +16,10 @@ function s3() {
       region: process.env.S3_REGION || "auto",
       endpoint: process.env.S3_ENDPOINT || undefined,
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+      // Newer SDKs add CRC32 checksums to every upload by default, which S3-compatible services
+      // such as Backblaze B2 and R2 can reject. Only send checksums where AWS requires them.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
         secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",

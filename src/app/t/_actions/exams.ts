@@ -352,11 +352,17 @@ export async function generateSpeechAction(
       );
     }
     const key = newStorageKey("QUESTION_AUDIO", result.mimeType);
-    await storage().put(key, result.audio, result.mimeType);
     const name = "הקראה אוטומטית";
-    const media = await db.mediaFile.create({
-      data: { ownerId: user.id, kind: "QUESTION_AUDIO", status: "READY", storageKey: key, mimeType: result.mimeType, sizeBytes: result.audio.length, originalName: name },
-    });
+    let media;
+    try {
+      await storage().put(key, result.audio, result.mimeType);
+      media = await db.mediaFile.create({
+        data: { ownerId: user.id, kind: "QUESTION_AUDIO", status: "READY", storageKey: key, mimeType: result.mimeType, sizeBytes: result.audio.length, originalName: name },
+      });
+    } catch (e) {
+      console.error("[tts] saving audio failed", e);
+      throw new AppError(500, "ההקראה נוצרה אבל לא נשמרה באחסון הקבצים. בדקו ב-Vercel את משתני S3, או הקליטו את השאלה בקול.");
+    }
     await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length });
     return { ok: true, mediaId: media.id, meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length } };
   } catch (e) {
