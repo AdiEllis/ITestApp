@@ -18,11 +18,13 @@ type Progress = { plays?: Record<string, number>; prepStarted?: Record<string, s
 export const POST = withUser<{ params: Promise<{ id: string }> }>(async (req, user, { params }) => {
   const { id } = await params;
   const body = bodySchema.parse(await req.json());
+  const own = await getOwnAttempt(user, id);
+  assertSebIfRequired(own.assignment, req.headers.get("user-agent"));
+  // Every query inside uses `tx`: on Vercel the pool has a single connection, so `db` here would wait forever.
   const result = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Attempt" WHERE id = ${id} FOR UPDATE`;
-    const attempt = await getOwnAttempt(user, id);
+    const attempt = await tx.attempt.findUniqueOrThrow({ where: { id } });
     if (attempt.status !== "IN_PROGRESS") throw new AppError(409, "המבחן כבר הוגש");
-    assertSebIfRequired(attempt.assignment, req.headers.get("user-agent"));
     const snapshot = snapshotOf(attempt);
     const progress = { ...((attempt.progress ?? {}) as Progress) };
     let choices = { ...((attempt.choices ?? {}) as Record<string, string>) };
