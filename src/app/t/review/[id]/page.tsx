@@ -54,6 +54,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
           submittedAt: attempt.submittedAt?.toISOString() ?? null,
           late: !!(attempt.submittedAt && attempt.assignment.dueAt && attempt.submittedAt > attempt.assignment.dueAt),
           overallFeedback: attempt.overallFeedback,
+          totalScore: attempt.totalScore,
           choices: (attempt.choices ?? {}) as Record<string, string>,
           returnNote: attempt.returnNote,
         }}
@@ -65,6 +66,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
           recordingMime: a.recording?.mimeType ?? null,
           recordingCount: a.recordingCount,
           durationSec: a.durationSec,
+          textAnswer: a.textAnswer,
           criterionScores: (a.criterionScores ?? null) as Record<string, number | null> | null,
           score: a.score,
           feedback: a.feedback,

@@ -89,8 +89,7 @@ test("tour", async ({ browser }) => {
   await shot(s, "31-student-home");
   await s.getByRole("link", { name: /מלחמת העולם/ }).first().click();
   await shot(s, "32-student-assignment");
-  const skip = s.getByRole("button", { name: /דילוג/ });
-  if (await skip.count()) await skip.click();
+  await s.getByRole("button", { name: /דילוג/ }).click();
   await shot(s, "33-student-assignment-after-mic");
   await s.getByRole("button", { name: "התחלת המבחן" }).click();
   await expect(s).toHaveURL(/\/run$/);

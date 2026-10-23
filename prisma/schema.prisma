@@ -404,6 +404,8 @@ model Answer {
   recording       MediaFile? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
   recordingCount  Int        @default(0)
   durationSec     Float?
+  // Typed answer, for a student who prefers the keyboard to recording.
+  textAnswer      String?
   // { [criterionKey]: 0..100 }
   criterionScores Json?
   score           Float?

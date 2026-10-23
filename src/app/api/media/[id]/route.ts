@@ -16,7 +16,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const media = await db.mediaFile.findUniqueOrThrow({ where: { id } });
   const download = new URL(req.url).searchParams.get("download") === "1" || mediaCategory(media.mimeType) === "doc";
   const url = await storage().createDownloadUrl(media.storageKey, {
-    ttlSec: 15 * 60,
+    // Long enough for a teacher who pauses grading and comes back; the player also reloads a stale link.
+    ttlSec: 3 * 60 * 60,
     mimeType: media.mimeType,
     downloadName: download ? media.originalName ?? `file` : undefined,
   });
