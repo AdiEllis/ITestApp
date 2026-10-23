@@ -13,7 +13,7 @@ import { COBE_RUBRIC_NAME, GENERAL_RUBRIC_NAME } from "@/lib/default-rubrics";
 import { copyExam, deleteMediaIfUnreferenced, loadExam, newStorageKey, publishProblems } from "@/lib/exams";
 import { examSettingsSchema, OPEN_RECORD_SEC, spokenText } from "@/lib/exam-types";
 import { mediaCategory } from "@/lib/files";
-import { storage } from "@/lib/storage";
+import { describeStorageError, storage } from "@/lib/storage";
 import { rateLimit } from "@/lib/rate-limit";
 import { synthesize, TtsError, ttsProvider, TTS_MAX_CHARS } from "@/lib/tts";
 import { toBuilderState, type BuilderExam, type MediaMeta } from "@/lib/builder-state";
@@ -361,7 +361,7 @@ export async function generateSpeechAction(
       });
     } catch (e) {
       console.error("[tts] saving audio failed", e);
-      throw new AppError(500, "ההקראה נוצרה אבל לא נשמרה באחסון הקבצים. בדקו ב-Vercel את משתני S3, או הקליטו את השאלה בקול.");
+      throw new AppError(500, `ההקראה נוצרה אבל לא נשמרה באחסון הקבצים. ${describeStorageError(e)}`);
     }
     await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length });
     return { ok: true, mediaId: media.id, meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length } };
