@@ -9,4 +9,5 @@ export function storage(): StorageDriver {
   if (process.env.VERCEL) throw new Error('STORAGE_DRIVER must be "s3" on Vercel');
   return localDriver;
 }
+export { describeStorageError } from "./s3";
 export type { StorageDriver, UploadTarget } from "./types";

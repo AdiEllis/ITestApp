@@ -111,3 +111,13 @@ describe("Azure voice errors", () => {
     }
   });
 });
+
+describe("S3 settings", () => {
+  it("tidies pasted values and takes the Backblaze region from the endpoint", async () => {
+    const { s3Settings, describeStorageError } = await import("@/lib/storage/s3");
+    const c = s3Settings({ S3_ENDPOINT: " s3.us-east-005.backblazeb2.com/ ", S3_REGION: "auto", S3_BUCKET: " b ", S3_ACCESS_KEY_ID: " id ", S3_SECRET_ACCESS_KEY: "k\n" } as unknown as NodeJS.ProcessEnv);
+    expect(c).toEqual({ endpoint: "https://s3.us-east-005.backblazeb2.com", region: "us-east-005", bucket: "b", accessKeyId: "id", secretAccessKey: "k" });
+    expect(describeStorageError({ name: "SignatureDoesNotMatch" })).toContain("S3_SECRET_ACCESS_KEY");
+    expect(describeStorageError({ name: "NoSuchBucket" })).toContain("(קוד: NoSuchBucket)");
+  });
+});
