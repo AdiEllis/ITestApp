@@ -11,11 +11,13 @@ export function AssignForm({
   classes,
   defaultExamId,
   defaultClassroomId,
+  emailEnabled,
 }: {
   exams: { id: string; title: string; mode: string }[];
   classes: { id: string; name: string; students: { id: string; name: string }[] }[];
   defaultExamId?: string;
   defaultClassroomId?: string;
+  emailEnabled: boolean;
 }) {
   const [state, action] = useActionState(createAssignmentAction, undefined);
   const [examId, setExamId] = useState(exams.find((e) => e.id === defaultExamId)?.id ?? exams[0].id);
@@ -112,6 +114,14 @@ export function AssignForm({
           </Field>
         </div>
       </details>
+      {emailEnabled && (
+        <Checkbox
+          name="notify"
+          defaultChecked
+          label="לשלוח לתלמידים מייל על המבחן החדש"
+          hint="רק לתלמידים שנכנסים עם Google. אם בחרת תאריך פתיחה מאוחר יותר, לא נשלח מייל."
+        />
+      )}
       <FormMessage state={state} />
       <SubmitButton size="lg" pendingText="שולח…">שליחה לכיתה</SubmitButton>
     </form>

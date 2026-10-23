@@ -80,6 +80,7 @@ test("read-aloud must be approved; a classroom exam opens only in Safe Exam Brow
   await t.getByRole("link", { name: "שליחה לכיתה" }).click();
   await t.getByText("בכיתה, במחשב נעול").click();
   await t.locator("#sebQuitPassword").fill("4321");
+  await expect(t.getByLabel("לשלוח לתלמידים מייל על המבחן החדש")).toBeChecked();
   await shot(t, "21-assign-classroom");
   await t.getByRole("button", { name: "שליחה לכיתה", exact: true }).click();
   await expect(t).toHaveURL(/\/t\/assignments\/\w+$/);

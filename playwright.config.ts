@@ -60,6 +60,8 @@ export default defineConfig({
       ALLOW_TEACHER_SIGNUP: "true",
       // Automatic read-aloud with a test tone instead of a paid voice service.
       TTS_PROVIDER: "fake",
+      // New-exam emails are printed instead of sent.
+      EMAIL_DRIVER: "log",
       ...s3Env,
     },
   },

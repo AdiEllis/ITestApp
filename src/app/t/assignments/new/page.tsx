@@ -6,6 +6,7 @@ import { Card, PageHeader } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { LinkButton } from "@/components/ui/button";
 import { AssignForm } from "./form";
+import { emailEnabled } from "@/lib/email";
 import { HelpButton } from "@/components/help/help-button";
 
 export const metadata = { title: "שליחת מבחן לכיתה" };
@@ -44,6 +45,7 @@ export default async function NewAssignmentPage({ searchParams }: { searchParams
       ) : (
         <Card className="p-5">
           <AssignForm
+            emailEnabled={emailEnabled()}
             exams={exams}
             classes={classes.map((c) => ({ id: c.id, name: c.name, students: c.enrollments.map((e) => e.student) }))}
             defaultExamId={sp.examId}

@@ -10,6 +10,7 @@ import { formatDateTime, formatScore } from "@/lib/format";
 import { MODE_LABELS } from "@/lib/exam-types";
 import { JoinAnotherClass } from "./join-another";
 import { Alert } from "@/components/ui/alert";
+import { cn } from "@/components/ui/cn";
 
 export const metadata = { title: "המבחנים שלי" };
 
@@ -74,15 +75,24 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
             {open.map((a) => {
               const latest = a.attempts[0];
               const overdue = a.dueAt && a.dueAt < now;
+              const fresh = !latest;
               return (
-                <Link key={a.id} href={`/s/assignments/${a.id}`} className="group block rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-[var(--shadow-card)] transition-colors hover:border-brand">
+                <Link
+                  key={a.id}
+                  href={`/s/assignments/${a.id}`}
+                  className={cn(
+                    "group block rounded-[var(--radius-card)] border bg-surface p-4 shadow-[var(--shadow-card)] transition-colors hover:border-brand",
+                    fresh ? "border-brand-line ring-2 ring-brand/10" : "border-line",
+                  )}
+                >
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold" dir="auto">
                           {a.exam.title}
                         </p>
-                        <Badge tone={a.exam.mode === "SIMULATION" ? "brand" : "neutral"}>{MODE_LABELS[a.exam.mode]}</Badge>
+                        {fresh && <Badge tone="brand">חדש</Badge>}
+                        <Badge tone="neutral">{MODE_LABELS[a.exam.mode]}</Badge>
                         {latest?.status === "IN_PROGRESS" && <Badge tone="warn">בתהליך</Badge>}
                         {latest?.status === "RETURNED" && <Badge tone="rec">הוחזר לתיקון</Badge>}
                       </div>
