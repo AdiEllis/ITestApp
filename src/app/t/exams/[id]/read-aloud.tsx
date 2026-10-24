@@ -177,6 +177,7 @@ export function ReadAloudPanel({
   const [showReadText, setShowReadText] = useState(!!q.readText);
   const [fixAdded, setFixAdded] = useState(false);
   const [fixedWords, setFixedWords] = useState<string[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const { voices, voice, setVoice } = useContext(ReadAloudContext);
   const text = spokenText(q);
   const current = audioMatchesText(q);
@@ -223,6 +224,7 @@ export function ReadAloudPanel({
     }
     setFixAdded(false);
     setFixedWords(r.fixedWords ?? []);
+    setNotice(r.message ?? null);
     onMedia(r.mediaId, r.meta);
     onChange({ audioId: r.mediaId, audioSource: "TTS", audioText: text, audioApproved: false });
   }
@@ -323,6 +325,7 @@ export function ReadAloudPanel({
         </div>
       )}
 
+      {notice && <p className="text-sm text-warn">{notice}</p>}
       {error && (
         <p className="text-sm text-danger" role="alert">
           {error}

@@ -15,7 +15,7 @@ import { examSettingsSchema, OPEN_RECORD_SEC, spokenText } from "@/lib/exam-type
 import { mediaCategory } from "@/lib/files";
 import { describeStorageError, storage } from "@/lib/storage";
 import { rateLimit } from "@/lib/rate-limit";
-import { synthesize, TtsError, ttsProvider, ttsProviders, TTS_MAX_CHARS, type TtsProvider } from "@/lib/tts";
+import { synthesize, TtsError, ttsProvider, TTS_MAX_CHARS, TTS_PROVIDER_LABELS, type TtsProvider } from "@/lib/tts";
 import { applyPronunciation, normalizeWritten, PRONUNCIATION_MAX } from "@/lib/pronunciation";
 import { toBuilderState, type BuilderExam, type MediaMeta } from "@/lib/builder-state";
 
@@ -377,8 +377,14 @@ export async function generateSpeechAction(
       console.error("[tts] saving audio failed", e);
       throw new AppError(500, `ההקראה נוצרה אבל לא נשמרה באחסון הקבצים. ${describeStorageError(e)}`);
     }
-    await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length, provider: provider ?? ttsProviders()[0] });
-    return { ok: true, mediaId: media.id, meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length }, fixedWords };
+    await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length, provider: result.provider });
+    return {
+      ok: true,
+      mediaId: media.id,
+      meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length },
+      fixedWords,
+      message: provider && result.provider !== provider ? `הגעתם למכסה היומית החינמית של ${TTS_PROVIDER_LABELS[provider]}, ולכן ההקראה נוצרה ב${TTS_PROVIDER_LABELS[result.provider]}. מחר אפשר לנסות שוב.` : undefined,
+    };
   } catch (e) {
     return fail(e);
   }

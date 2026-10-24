@@ -20,6 +20,8 @@ export type TtsProvider = "gemini" | "azure" | "google" | "fake";
 export interface TtsResult {
   audio: Buffer;
   mimeType: string;
+  /** The voice that actually read the text: another one when the chosen one is over its free quota. */
+  provider: TtsProvider;
 }
 
 export const TTS_MAX_CHARS = 15000;
@@ -323,6 +325,9 @@ export async function synthesize(text: string, opts: { rate?: number; provider?:
     parts = await mapLimit(splitForSpeech(clean, CHUNK_CHARS[provider]), 4, speak);
   } catch (e) {
     if (e instanceof TtsError) e.provider = provider;
+    // The free daily quota of one voice ran out: read with the next voice instead of failing.
+    const next = available[available.indexOf(provider) + 1];
+    if (e instanceof TtsError && e.reason === "quota" && next) return synthesize(text, { ...opts, provider: next });
     throw e;
   }
   // A short silence between parts, like the pause between lines.
@@ -335,5 +340,5 @@ export async function synthesize(text: string, opts: { rate?: number; provider?:
     pcm.set(p, at);
     at += p.length;
   });
-  return { audio: await encodeMp3(pcm), mimeType: "audio/mpeg" };
+  return { audio: await encodeMp3(pcm), mimeType: "audio/mpeg", provider };
 }
