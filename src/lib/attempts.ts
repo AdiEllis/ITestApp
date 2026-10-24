@@ -158,3 +158,31 @@ export async function attachRecording(attemptId: string, studentId: string, ques
   });
   if (replaced) await storage().delete(replaced).catch((e) => console.error("failed to delete old recording", e));
 }
+
+export const TEXT_ANSWER_MAX = 20_000;
+
+/** Saves (or clears) the student's typed answer to a question. Same locking as attachRecording. */
+export async function saveTextAnswer(attemptId: string, studentId: string, questionId: string, text: string) {
+  const clean = text.trim() ? text : null;
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Attempt" WHERE id = ${attemptId} FOR UPDATE`;
+    const attempt = await tx.attempt.findUnique({ where: { id: attemptId } });
+    if (!attempt || attempt.studentId !== studentId) throw new AppError(404, "הניסיון לא נמצא");
+    if (attempt.status !== "IN_PROGRESS") throw new AppError(409, "המבחן כבר הוגש");
+    if (attempt.deadlineAt && attempt.deadlineAt.getTime() + DEADLINE_GRACE_MS < Date.now()) throw new AppError(409, "הזמן למבחן הסתיים");
+    const snapshot = snapshotOf(attempt);
+    const found = findQuestion(snapshot, questionId);
+    if (!found) throw new AppError(400, "השאלה אינה חלק מהמבחן");
+    if (snapshot.mode === "SIMULATION") throw new AppError(400, "במבחן הזה עונים בהקלטה");
+    if (found.section.choiceMode === "CHOOSE_ONE") {
+      const choices = (attempt.choices ?? {}) as Record<string, string>;
+      if (choices[found.section.id] && choices[found.section.id] !== questionId) throw new AppError(409, "כבר בחרת נושא אחר בחלק זה");
+      if (clean) await tx.attempt.update({ where: { id: attemptId }, data: { choices: { ...choices, [found.section.id]: questionId } } });
+    }
+    await tx.answer.upsert({
+      where: { attemptId_questionId: { attemptId, questionId } },
+      create: { attemptId, questionId, textAnswer: clean },
+      update: { textAnswer: clean },
+    });
+  });
+}

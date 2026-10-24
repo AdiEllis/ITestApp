@@ -150,10 +150,9 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await expect(teacher.getByText("צריך להאזין ולאשר")).toBeVisible();
     await teacher.getByLabel("האזנתי להקראה עד הסוף, והיא קוראת את השאלה נכון").check();
     await expect(teacher.getByText("ההקראה אושרה")).toBeVisible();
-    // A pasted YouTube link is embedded (privacy-enhanced) instead of uploading a file.
+    // Videos are only for the English oral bagrut, so a regular exam doesn't offer them.
     await teacher.getByText("הגדרות לשאלה").last().click();
-    await teacher.getByLabel("סרטון לשאלה (קישור, לא חובה)").fill("https://youtu.be/dQw4w9WgXcQ");
-    await expect(teacher.locator('iframe[src^="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"]')).toBeVisible();
+    await expect(teacher.getByLabel("סרטון לשאלה (קישור, לא חובה)")).toHaveCount(0);
     await expect(teacher.getByText("נשמר", { exact: true })).toBeVisible({ timeout: 15_000 });
     await teacher.getByRole("button", { name: "פרסום" }).click();
     await expect(teacher.getByText("המבחן פורסם")).toBeVisible();
@@ -222,10 +221,19 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await ctx.close();
   });
 
-  test("7. teacher listens to the recordings, grades with the rubric and publishes feedback", async () => {
+  test("7. teacher listens to the recordings, grades each question and publishes feedback", async () => {
     await teacher.goto("/t/review");
     await teacher.getByText(state.students[0].name).click();
     await expect(teacher).toHaveURL(/\/t\/review\/\w+/);
+
+    // A stale link (phone back from another app) fails once; the player loads a fresh one by itself.
+    let failed = 0;
+    await expect(teacher.locator('audio[src^="/api/media/"]').first()).toBeAttached();
+    await teacher.route("**/api/media/**", (route) => (failed++ === 0 ? route.fulfill({ status: 403, body: "expired" }) : route.continue()));
+    await teacher.locator("audio").first().evaluate((a: HTMLAudioElement) => a.load());
+    await expect(teacher.locator('audio[src*="r="]').first()).toBeAttached({ timeout: 10_000 });
+    await expect.poll(() => teacher.locator("audio").first().evaluate((a: HTMLAudioElement) => a.readyState), { timeout: 10_000 }).toBeGreaterThan(0);
+    await teacher.unroute("**/api/media/**");
 
     const src = await teacher.locator('audio[src^="/api/media/"]').first().getAttribute("src");
     state.recordingUrl = src!;
@@ -243,11 +251,13 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await expect(nav).toHaveCount(4);
     for (let i = 0; i < 4; i++) {
       await nav.nth(i).click();
-      const bands = teacher.getByRole("button", { name: /^מצוין/ });
-      await expect(bands).toHaveCount(4);
-      for (let b = 0; b < 4; b++) await bands.nth(b).click();
-      await teacher.getByLabel("משוב לשאלה").fill(`Good answer ${i + 1}.`);
+      await teacher.getByLabel("ציון לשאלה").fill("100"); // capped at the question's points
+      await teacher.getByLabel("הערה לשאלה (לא חובה)").fill(`Good answer ${i + 1}.`);
     }
+    // The final grade starts as the sum of the question scores; the teacher may change it.
+    await expect(teacher.locator("#final")).toHaveValue("100");
+    await teacher.locator("#final").fill("88");
+    await expect(teacher.getByRole("button", { name: /חזרה לסכום השאלות/ })).toBeVisible();
     await teacher.locator("#overall").fill("Great fluency. Add more examples.");
     await shot(teacher, "07-grader");
     await teacher.getByRole("button", { name: "פרסום לתלמיד/ה" }).click();

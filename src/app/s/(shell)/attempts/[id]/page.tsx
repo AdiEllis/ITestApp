@@ -127,6 +127,11 @@ export default async function AttemptResult({ params, searchParams }: { params: 
                   </span>
                 )}
               </div>
+              {a?.textAnswer && (
+                <p className="whitespace-pre-wrap rounded-lg border border-line bg-subtle/50 px-3 py-2 text-[15px] leading-relaxed" dir="auto">
+                  {a.textAnswer}
+                </p>
+              )}
               {a?.recording ? (
                 <div className="space-y-1">
                   <RecordingAudio src={`/api/media/${a.recording.id}`} className="w-full" aria-label="ההקלטה שלך" />
@@ -134,9 +139,9 @@ export default async function AttemptResult({ params, searchParams }: { params: 
                     <CheckCircle2 className="size-3.5 text-ok" /> הקלטה · {formatDuration(a.durationSec)}
                   </p>
                 </div>
-              ) : (
-                <p className="text-sm text-warn">לא הוקלטה תשובה</p>
-              )}
+              ) : !a?.textAnswer ? (
+                <p className="text-sm text-warn">לא נענתה</p>
+              ) : null}
               {published && a?.feedback && (
                 <div className="rounded-lg bg-brand-soft px-3 py-2 text-sm leading-relaxed text-ink" dir="auto">
                   {a.feedback}

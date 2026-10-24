@@ -95,7 +95,6 @@ export function ExamBuilder({
   initialMedia,
   status,
   locked,
-  rubrics,
   sourceFiles: initialSources,
   sharedEntry,
   justCopied,
@@ -453,25 +452,6 @@ export function ExamBuilder({
                     label="מותר לפרסם שאלות בלי קובץ הקראה"
                     hint="שאלה בלי הקראה מאושרת תוקרא בקול של המכשיר של התלמיד/ה. הקול הזה שונה ממכשיר למכשיר ועלול לטעות, לכן לא מומלץ למבחן."
                   />
-                  <Field
-                    label="מחוון הערכה"
-                    htmlFor="rubric"
-                    hint={
-                      <Link href="/t/rubrics" className="text-brand hover:underline">
-                        עריכת מחוונים
-                      </Link>
-                    }
-                  >
-                    <Select id="rubric" value={exam.rubricId ?? ""} onChange={(e) => update((x) => ({ ...x, rubricId: e.target.value || null }))}>
-                      <option value="">ללא מחוון (ציון ישיר לכל שאלה)</option>
-                      {rubrics.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                          {r.system ? " (ברירת מחדל)" : ""}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
                   <TopicsInput topics={exam.topics} onChange={(topics) => update((x) => ({ ...x, topics }))} />
                   <p className="text-sm text-ink-3">
                     סה״כ ניקוד: <span className="font-semibold tabular text-ink">{totalPoints}</span> · הציון הסופי מנורמל ל־100
@@ -858,8 +838,12 @@ function QuestionCard(props: {
                   <Input id={`qi-${q.key}`} dir="auto" value={q.instructions ?? ""} onChange={(e) => props.onChange({ instructions: e.target.value })} placeholder="לדוגמה: ענו על כל חלקי השאלה בהקלטה אחת" />
                 </Field>
               </div>
-              <VideoLinkField id={`qvurl-${q.key}`} label="סרטון לשאלה (קישור, לא חובה)" value={q.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
+              {/* Videos belong to the English oral bagrut (COBE); other exams only show them for a question that already has one. */}
+              {(props.simulation || q.videoUrl || q.videoId) && (
+                <VideoLinkField id={`qvurl-${q.key}`} label="סרטון לשאלה (קישור, לא חובה)" value={q.videoUrl} onChange={(v) => props.onChange({ videoUrl: v })} />
+              )}
               <div className="grid gap-4 lg:grid-cols-2">
+                {(props.simulation || q.videoId) && (
                 <MediaField
                   label="העלאת קובץ וידאו"
                   accept="video"
@@ -871,6 +855,7 @@ function QuestionCard(props: {
                     props.onChange({ videoId: id });
                   }}
                 />
+                )}
                 <MediaField
                   label="תמונה"
                   accept="image"
@@ -961,7 +946,7 @@ function SourceFilesPanel({ examId, files, readOnly, onChanged }: { examId: stri
         )}
       </div>
       <p className="text-[13px] text-ink-3">
-        PDF, Word, שמע ווידאו של מבחן מוכן. קבצי שמע/וידאו ניתן לשייך לשאלות דרך &quot;מהקבצים שהועלו&quot;. קבצי מקור אינם מוצגים לתלמידים.
+        PDF, Word או קובצי שמע של מבחן מוכן. קבצי שמע ניתן לשייך לשאלות דרך &quot;מהקבצים שהועלו&quot;. קבצי מקור אינם מוצגים לתלמידים.
       </p>
       {uploads.map((u) => (
         <div key={u.name} className="space-y-1 text-sm">

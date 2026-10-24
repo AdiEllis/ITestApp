@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   CloudUpload,
   Hourglass,
+  Keyboard,
   Loader2,
   Mic,
   RotateCcw,
@@ -35,6 +36,12 @@ import { LimitedMedia } from "./limited-media";
 import { VideoEmbed } from "@/components/media/video-embed";
 import { parseVideo } from "@/lib/video";
 import { useRecordingUploads, type SavedAnswer, type UploadStatus } from "./use-uploads";
+import { TypedAnswer, flushTextSaves } from "./typed-answer";
+
+/** A question counts as answered once it has a recording or a typed answer. */
+function isAnswered(a?: SavedAnswer) {
+  return !!a && (a.recordingCount > 0 || !!a.textAnswer?.trim());
+}
 
 type Progress = { plays?: Record<string, number>; prepStarted?: Record<string, string>; position?: number };
 
@@ -90,7 +97,7 @@ export function ExamRunner(props: RunnerProps) {
 
   const recorder = useRecorder();
   const uploads = useRecordingUploads(attemptId, preview, (qid, a) =>
-    setAnswers((cur) => ({ ...cur, [qid]: { ...a, recordingCount: a.recordingCount === -1 ? (cur[qid]?.recordingCount ?? 0) + 1 : a.recordingCount } })),
+    setAnswers((cur) => ({ ...cur, [qid]: { ...cur[qid], ...a, textAnswer: cur[qid]?.textAnswer ?? null, recordingCount: a.recordingCount === -1 ? (cur[qid]?.recordingCount ?? 0) + 1 : a.recordingCount } })),
   );
 
   // ----- clock -----
@@ -132,6 +139,7 @@ export function ExamRunner(props: RunnerProps) {
       }
       setSubmitting(true);
       setSubmitError(null);
+      await flushTextSaves();
       const r = await post(`/api/attempts/${attemptId}/submit`, { reason });
       if (!r.ok) {
         setSubmitting(false);
@@ -170,7 +178,7 @@ export function ExamRunner(props: RunnerProps) {
   }, [recorder.state, uploads.busy]);
 
   const step = steps[index];
-  const answeredCount = steps.filter((s) => s.question && answers[s.question.id]?.recordingCount).length;
+  const answeredCount = steps.filter((s) => s.question && isAnswered(answers[s.question.id])).length;
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -201,7 +209,7 @@ export function ExamRunner(props: RunnerProps) {
         </div>
         <div className="mx-auto flex max-w-3xl gap-1 px-4 pb-2" aria-label="התקדמות">
           {steps.map((s, i) => {
-            const done = s.question ? !!answers[s.question.id]?.recordingCount : false;
+            const done = s.question ? isAnswered(answers[s.question.id]) : false;
             const reachable = canGoBack || i >= index;
             return (
               <button
@@ -270,6 +278,13 @@ export function ExamRunner(props: RunnerProps) {
             }}
             onRecorded={(qid, r) => uploads.enqueue(qid, r)}
             onRetryUpload={() => uploads.retryAll()}
+            attemptId={attemptId}
+            onTyped={(qid, text) =>
+              setAnswers((cur) => ({
+                ...cur,
+                [qid]: { ...(cur[qid] ?? { recordingId: null, recordingCount: 0, durationSec: null, mimeType: null }), textAnswer: text },
+              }))
+            }
           />
         ) : null}
       </main>
@@ -322,6 +337,8 @@ function StepView(props: {
   onPlay: (mediaKey: string) => Promise<boolean>;
   onRecorded: (questionId: string, r: RecordingResult) => Promise<void>;
   onRetryUpload: () => void;
+  attemptId: string;
+  onTyped: (questionId: string, text: string) => void;
 }) {
   const { step, progress } = props;
   const { section, question } = step;
@@ -356,7 +373,7 @@ function StepView(props: {
       {!question ? (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">בחרו נושא אחד</h2>
-          <p className="text-sm text-ink-2">לאחר שתתחילו להקליט לא ניתן יהיה להחליף נושא.</p>
+          <p className="text-sm text-ink-2">לאחר שתתחילו לענות לא ניתן יהיה להחליף נושא.</p>
           <div className="grid gap-3">
             {section.questions.map((q, i) => (
               <button
@@ -386,7 +403,7 @@ function StepView(props: {
 function QuestionView(props: Parameters<typeof StepView>[0] & { question: SnapshotQuestion; plays: Record<string, number> }) {
   const { question: q, snapshot, plays, step, answer } = props;
   const media = snapshot.media;
-  const recorded = (answer?.recordingCount ?? 0) > 0;
+  const recorded = isAnswered(answer);
   return (
     <div className="space-y-5">
       {q.audioId ? (
@@ -455,6 +472,9 @@ function QuestionView(props: Parameters<typeof StepView>[0] & { question: Snapsh
         onPrep={() => props.onPrep(q.id)}
         onRecorded={(r) => props.onRecorded(q.id, r)}
         onRetryUpload={props.onRetryUpload}
+        attemptId={props.attemptId}
+        preview={props.preview}
+        onTyped={(text) => props.onTyped(q.id, text)}
       />
     </div>
   );
@@ -497,8 +517,14 @@ function RecordPanel(props: {
   onPrep: () => void;
   onRecorded: (r: RecordingResult) => Promise<void>;
   onRetryUpload: () => void;
+  attemptId: string;
+  preview: boolean;
+  onTyped: (text: string) => void;
 }) {
   const { question: q, recorder, answer, uploadStatus } = props;
+  // Practice exams let the student answer on the keyboard instead of recording.
+  const canType = !props.simulation;
+  const [typing, setTyping] = useState(canType && !!answer?.textAnswer?.trim() && !answer?.recordingCount);
   const [warning, setWarning] = useState<string | null>(null);
   const [confirmRe, setConfirmRe] = useState(false);
   const count = answer?.recordingCount ?? 0;
@@ -574,8 +600,25 @@ function RecordPanel(props: {
   }
 
   return (
-    <section aria-label="הקלטת תשובה" className={cn("rounded-[var(--radius-card)] border p-5 transition-colors", isRecording ? "border-[#f3c9ca] bg-rec-soft" : "border-line bg-surface shadow-[var(--shadow-card)]")}>
-      {isRecording ? (
+    <section aria-label="מענה לשאלה" className={cn("rounded-[var(--radius-card)] border p-5 transition-colors", isRecording ? "border-[#f3c9ca] bg-rec-soft" : "border-line bg-surface shadow-[var(--shadow-card)]")}>
+      {canType && !isRecording && (
+        <div role="group" aria-label="איך לענות" className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-subtle p-1 text-sm font-medium">
+          {([false, true] as const).map((t) => (
+            <button
+              key={String(t)}
+              type="button"
+              aria-pressed={typing === t}
+              onClick={() => setTyping(t)}
+              className={cn("flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition-colors", typing === t ? "bg-surface text-ink shadow-sm" : "text-ink-2 hover:text-ink")}
+            >
+              {t ? <Keyboard className="size-4" /> : <Mic className="size-4" />} {t ? "תשובה בהקלדה" : "תשובה בהקלטה"}
+            </button>
+          ))}
+        </div>
+      )}
+      {typing && !isRecording ? (
+        <TypedAnswer attemptId={props.attemptId} questionId={q.id} preview={props.preview} initial={answer?.textAnswer ?? ""} onChange={props.onTyped} />
+      ) : isRecording ? (
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex items-center gap-2 text-sm font-semibold text-rec" aria-live="polite">
             <span className="rec-pulse size-2.5 rounded-full bg-rec" /> מקליט
@@ -711,18 +754,19 @@ function ReviewScreen(props: {
 }) {
   const [confirm, setConfirm] = useState(false);
   const multiPart = new Set(props.steps.map((s) => s.section.id)).size > 1;
-  const missing = props.steps.filter((s) => !s.question || !props.answers[s.question.id]?.recordingCount).length;
+  const missing = props.steps.filter((s) => !s.question || !isAnswered(props.answers[s.question.id])).length;
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-semibold">סיום והגשה</h1>
-        <p className="mt-1 text-sm text-ink-2">בדקו שכל התשובות נשמרו. לאחר ההגשה לא ניתן לשנות את ההקלטות.</p>
+        <p className="mt-1 text-sm text-ink-2">בדקו שכל התשובות נשמרו. לאחר ההגשה לא ניתן לשנות את התשובות.</p>
       </div>
       <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface">
         {props.steps.map((s, i) => {
           const a = s.question ? props.answers[s.question.id] : undefined;
           const st = s.question ? props.uploadStatus[s.question.id] : undefined;
-          const done = !!a?.recordingCount;
+          const done = isAnswered(a);
+          const typedOnly = done && !a?.recordingCount;
           return (
             <li key={i} className="flex items-center gap-3 px-4 py-3">
               <span className={cn("grid size-7 shrink-0 place-items-center rounded-full", done ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn")}>
@@ -734,7 +778,7 @@ function ReviewScreen(props: {
                   {s.question?.title || s.question?.prompt || "בחירת נושא"}
                 </p>
                 <p className="text-xs text-ink-3">
-                  {st?.state === "uploading" ? "מעלה…" : st?.state === "waiting-network" ? "ממתין לחיבור" : st?.state === "failed" ? "שגיאה בשמירה" : done ? `נשמר · ${formatDuration(a?.durationSec)}` : "לא נענתה"}
+                  {st?.state === "uploading" ? "מעלה…" : st?.state === "waiting-network" ? "ממתין לחיבור" : st?.state === "failed" ? "שגיאה בשמירה" : typedOnly ? "נשמר · תשובה בהקלדה" : done ? `נשמר · ${formatDuration(a?.durationSec)}` : "לא נענתה"}
                 </p>
               </div>
               {props.onGo && (
@@ -748,7 +792,7 @@ function ReviewScreen(props: {
       </ul>
       {missing > 0 && (
         <Alert tone="warn" title={`${missing} שאלות ללא תשובה`}>
-          שאלה ללא הקלטה תקבל 0 נקודות.
+          שאלה ללא תשובה תקבל 0 נקודות.
         </Alert>
       )}
       {props.busy && <Alert tone="info" title="ממתין לסיום שמירת ההקלטות">ההגשה תתאפשר כשכל ההקלטות יישמרו בשרת.</Alert>}

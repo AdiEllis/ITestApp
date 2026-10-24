@@ -15,6 +15,8 @@ export interface SavedAnswer {
   recordingCount: number;
   durationSec: number | null;
   mimeType: string | null;
+  /** typed answer, when the student chose the keyboard */
+  textAnswer?: string | null;
   /** object URL for instant local playback after recording */
   localUrl?: string;
 }
