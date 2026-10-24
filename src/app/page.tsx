@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CalendarClock, ClipboardCheck, Headphones, Library, Mic, ShieldCheck } from "lucide-react";
+import { CalendarClock, ClipboardCheck, Headphones, Mic, ShieldCheck } from "lucide-react";
 import { getCurrentUser, homeFor } from "@/lib/auth";
 import { Logo } from "@/components/logo";
 import { LinkButton } from "@/components/ui/button";
@@ -10,12 +10,10 @@ export default async function Home() {
   if (user) redirect(homeFor(user.role));
   const features = [
     { icon: Headphones, title: "שומעים את השאלה", body: "כל שאלה מוקראת בקול. המורה מאזינה ומאשרת את ההקראה, וכל התלמידים שומעים בדיוק אותה." },
-    { icon: Mic, title: "עונים בהקלטה", body: "בדיקת מיקרופון, שמירה מקומית עד שההעלאה מצליחה, וחיווי ברור על כל שלב." },
+    { icon: Mic, title: "עונים בהקלטה או בהקלדה", body: "כל תלמיד/ה בוחר/ת איך לענות. ההקלטה נשמרת גם כשהאינטרנט נופל." },
     { icon: CalendarClock, title: "לאורך כל השנה, בכל מקצוע", body: "מבחן קצר על מה שנלמד עד עכשיו, בבית או בכיתה, בלי מורה מקריאה צמודה." },
     { icon: ShieldCheck, title: "מבחן בכיתה במחשב נעול", body: "המבחן נפתח רק בתוך Safe Exam Browser, בלי גישה לאתרים אחרים." },
     { icon: ClipboardCheck, title: "בדיקה ומשוב של המורה", body: "המורה מאזינה או קוראת, נותנת ציון והערה לכל שאלה, וציון סופי — בלי בינה מלאכותית." },
-    { icon: Library, title: "מאגר מבחנים משותף", body: "שיתוף מבחנים בין מורים והעתקה לספרייה אישית לעריכה חופשית." },
-    { icon: ShieldCheck, title: "פרטיות תלמידים", body: "הקלטות פרטיות בגישה זמנית בלבד, הרשאות לפי תפקיד ומדיניות מחיקה." },
   ];
   return (
     <div className="min-h-dvh">

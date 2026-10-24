@@ -65,29 +65,31 @@ export default async function AssignmentIntro({ params }: { params: Promise<{ id
         </Card>
       )}
 
-      <Card className="p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold">
-          <Layers className="size-4 text-ink-3" /> מבנה
-        </h2>
-        <ol className="space-y-2">
-          {exam.sections.map((s) => (
-            <li key={s.id} className="flex items-center justify-between gap-3 rounded-lg bg-subtle px-3 py-2 text-sm">
-              <En as="span" className="font-medium">
-                {s.title}
-              </En>
-              <span className="text-ink-3">{s.choiceMode === "CHOOSE_ONE" ? `בחירת נושא 1 מתוך ${s.questions.length}` : `${s.questions.length} שאלות`}</span>
-            </li>
-          ))}
-        </ol>
-        <ul className="mt-4 space-y-1.5 text-sm text-ink-2">
+      <Card className="p-4 sm:p-5">
+        {exam.sections.length > 1 ? (
+          <ol className="mb-3 space-y-2">
+            {exam.sections.map((s) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 rounded-lg bg-subtle px-3 py-2 text-sm">
+                <En as="span" className="font-medium">
+                  {s.title}
+                </En>
+                <span className="text-ink-3">{s.choiceMode === "CHOOSE_ONE" ? `בחירת נושא 1 מתוך ${s.questions.length}` : `${s.questions.length} שאלות`}</span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="mb-2 flex items-center gap-2 text-[15px] font-semibold">
+            <Layers className="size-4 text-ink-3" /> {exam.sections[0]?.questions.length === 1 ? "שאלה אחת" : `${exam.sections[0]?.questions.length ?? 0} שאלות`}
+          </p>
+        )}
+        <ul className="space-y-1.5 text-sm text-ink-2">
           {settings.totalTimeLimitSec && (
             <li className="flex items-center gap-2">
               <Clock className="size-4 text-ink-3" /> זמן כולל: {Math.round(settings.totalTimeLimitSec / 60)} דקות. השעון מתחיל עם תחילת המבחן ולא נעצר.
             </li>
           )}
           {!settings.allowBackNavigation && <li>• לא ניתן לחזור לשאלות קודמות.</li>}
-          {simulation && <li>• בכל שאלה יש זמן הכנה, וההקלטה מתחילה אוטומטית בסיומו.</li>}
-          <li>• ענו על כל השאלות בסט בהקלטה אחת רציפה.</li>
+          {simulation ? <li>• בכל שאלה יש זמן הכנה, וההקלטה מתחילה אוטומטית בסיומו.</li> : <li>• כל שאלה מוקראת לכם. עונים בהקלטה או בהקלדה.</li>}
           {assignment.maxAttempts !== null && <li>• מספר ניסיונות: {assignment.maxAttempts}</li>}
         </ul>
       </Card>

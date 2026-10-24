@@ -13,6 +13,41 @@ export interface NavItem {
   icon: LucideIcon;
   badge?: number;
   exact?: boolean;
+  /** Shown in the phone's bottom tab bar, under this short label. */
+  tab?: string;
+}
+
+const isActive = (item: NavItem, pathname: string) => (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/"));
+
+function TabIcon({ icon: Icon }: { icon: LucideIcon }) {
+  const { pending } = useLinkStatus();
+  return pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Icon className="size-5" aria-hidden />;
+}
+
+/** Bottom tab bar on phones: the main pages within thumb reach, "עוד" opens the full menu. */
+function TabBar({ items, onMore }: { items: NavItem[]; onMore: () => void }) {
+  const pathname = usePathname();
+  const tabs = items.filter((i) => i.tab);
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }} aria-label="ניווט">
+      {tabs.map((item) => {
+        const active = isActive(item, pathname);
+        return (
+          <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("flex min-h-14 flex-col items-center justify-center gap-0.5 py-2 text-xs", active ? "font-medium text-brand" : "text-ink-3")}>
+            <span className="relative">
+              <TabIcon icon={item.icon} />
+              {item.badge ? <span className="absolute -end-3 -top-1.5 min-w-5 rounded-full bg-brand px-1 text-center text-[11px] font-semibold leading-5 text-white tabular">{item.badge}</span> : null}
+            </span>
+            {item.tab}
+          </Link>
+        );
+      })}
+      <button type="button" onClick={onMore} className="flex min-h-14 flex-col items-center justify-center gap-0.5 py-2 text-xs text-ink-3">
+        <Menu className="size-5" aria-hidden />
+        עוד
+      </button>
+    </nav>
+  );
 }
 
 /** Spinner on the tapped item until the new page shows, so a slow server never looks like a missed tap. */
@@ -30,7 +65,7 @@ function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
   return (
     <nav className="space-y-0.5" aria-label="ניווט ראשי">
       {items.map((item) => {
-        const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
+        const active = isActive(item, pathname);
         return (
           <Link
             key={item.href}
@@ -69,9 +104,27 @@ function UserBox({ name, roleLabel }: { name: string; roleLabel: string }) {
   );
 }
 
-export function AppShell({ items, user, roleLabel, home, children, banner }: { items: NavItem[]; user: { name: string }; roleLabel: string; home: string; children: React.ReactNode; banner?: React.ReactNode }) {
+export function AppShell({
+  items,
+  user,
+  roleLabel,
+  home,
+  children,
+  banner,
+  hideTabs,
+}: {
+  items: NavItem[];
+  user: { name: string };
+  roleLabel: string;
+  home: string;
+  children: React.ReactNode;
+  banner?: React.ReactNode;
+  /** Pages with their own bottom bar (the grader) hide the tab bar. */
+  hideTabs?: (pathname: string) => boolean;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const tabs = items.some((i) => i.tab) && !hideTabs?.(pathname);
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
@@ -93,9 +146,11 @@ export function AppShell({ items, user, roleLabel, home, children, banner }: { i
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/90 px-4 backdrop-blur lg:hidden">
         <Logo href={home} />
-        <button onClick={() => setOpen(true)} className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-subtle" aria-label="פתיחת תפריט" aria-expanded={open}>
-          <Menu className="size-5" />
-        </button>
+        {!tabs && (
+          <button onClick={() => setOpen(true)} className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-subtle" aria-label="פתיחת תפריט" aria-expanded={open}>
+            <Menu className="size-5" />
+          </button>
+        )}
       </header>
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="תפריט">
@@ -114,10 +169,11 @@ export function AppShell({ items, user, roleLabel, home, children, banner }: { i
           </div>
         </div>
       )}
-      <main className="min-w-0">
+      <main className={cn("min-w-0", tabs && "pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0")}>
         {banner}
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-9">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-9">{children}</div>
       </main>
+      {tabs && <TabBar items={items} onMore={() => setOpen(true)} />}
     </div>
   );
 }
