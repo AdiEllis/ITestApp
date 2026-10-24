@@ -211,7 +211,18 @@ export function findGeminiAudio(json: unknown): string | null {
   return found;
 }
 
-async function gemini(text: string, lang: Lang, rate: number): Promise<Pcm> {
+/** Gemini answers 429 both for the per-minute limit (wait a little) and the daily one (give up). */
+async function gemini(text: string, lang: Lang, rate: number, tries = 3): Promise<Pcm> {
+  try {
+    return await geminiOnce(text, lang, rate);
+  } catch (e) {
+    if (!(e instanceof TtsError && e.reason === "quota") || tries <= 1 || /per.?day|PerDay/i.test(e.message)) throw e;
+    await new Promise((r) => setTimeout(r, 12_000));
+    return gemini(text, lang, rate, tries - 1);
+  }
+}
+
+async function geminiOnce(text: string, lang: Lang, rate: number): Promise<Pcm> {
   const model = process.env.GEMINI_TTS_MODEL?.trim() || "gemini-3.8-flash-tts";
   const voice = process.env.GEMINI_TTS_VOICE?.trim() || "Kore";
   const res = await call(
@@ -280,7 +291,8 @@ export function splitForSpeech(text: string, max: number): string[] {
   return parts;
 }
 
-const CHUNK_CHARS: Record<TtsProvider, number> = { gemini: 900, azure: 2500, google: 2000, fake: 2500 };
+// Gemini's free tier allows about 100 requests a day and 10 a minute, so its parts are large.
+const CHUNK_CHARS: Record<TtsProvider, number> = { gemini: 2500, azure: 2500, google: 2000, fake: 2500 };
 
 /** Runs the parts a few at a time, keeping their order. */
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -322,7 +334,7 @@ export async function synthesize(text: string, opts: { rate?: number; provider?:
   };
   let parts: Pcm[];
   try {
-    parts = await mapLimit(splitForSpeech(clean, CHUNK_CHARS[provider]), 4, speak);
+    parts = await mapLimit(splitForSpeech(clean, CHUNK_CHARS[provider]), provider === "gemini" ? 3 : 4, speak);
   } catch (e) {
     if (e instanceof TtsError) e.provider = provider;
     // The free daily quota of one voice ran out: read with the next voice instead of failing.
