@@ -15,7 +15,8 @@ import { examSettingsSchema, OPEN_RECORD_SEC, spokenText } from "@/lib/exam-type
 import { mediaCategory } from "@/lib/files";
 import { describeStorageError, storage } from "@/lib/storage";
 import { rateLimit } from "@/lib/rate-limit";
-import { synthesize, TtsError, ttsProvider, TTS_MAX_CHARS } from "@/lib/tts";
+import { synthesize, TtsError, ttsProvider, ttsProviders, TTS_MAX_CHARS, type TtsProvider } from "@/lib/tts";
+import { applyPronunciation, normalizeWritten, PRONUNCIATION_MAX } from "@/lib/pronunciation";
 import { toBuilderState, type BuilderExam, type MediaMeta } from "@/lib/builder-state";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; problems?: string[] };
@@ -152,7 +153,7 @@ const nullableId = z.string().max(40).nullable();
 const questionInput = z.object({
   id: z.string().max(40).optional(),
   title: z.string().max(120).nullable(),
-  prompt: z.string().max(4000),
+  prompt: z.string().max(TTS_MAX_CHARS),
   subQuestions: z.array(z.string().max(1000)).max(12),
   instructions: z.string().max(2000).nullable(),
   readText: z.string().max(TTS_MAX_CHARS).nullable().default(null),
@@ -322,10 +323,18 @@ export async function saveExamAction(
  * Creates the read-aloud audio for a question with the automatic voice. The file is stored like a
  * teacher recording; the builder attaches it to the question, and the teacher must listen and approve it.
  */
+const TTS_KEY_HINT: Record<TtsProvider, string> = {
+  gemini: "בדקו ב-Vercel שהערך של GEMINI_API_KEY הוא המפתח מ-Google AI Studio, ושהמשתנה מסומן Production.",
+  azure: "בדקו ב-Vercel שהערך של AZURE_SPEECH_KEY הוא KEY 1 מ-Azure, ושהמשתנה מסומן Production.",
+  google: "בדקו ב-Vercel את הערך של GOOGLE_TTS_API_KEY.",
+  fake: "",
+};
+
 export async function generateSpeechAction(
   examId: string,
   text: string,
-): Promise<ActionResult & { mediaId?: string; meta?: MediaMeta[string] }> {
+  provider?: TtsProvider,
+): Promise<ActionResult & { mediaId?: string; meta?: MediaMeta[string]; fixedWords?: string[] }> {
   try {
     const user = await requireUser(["TEACHER"]);
     await getEditableExam(user, examId);
@@ -334,21 +343,26 @@ export async function generateSpeechAction(
     if (clean.length > TTS_MAX_CHARS) throw new AppError(400, `הטקסט ארוך מדי להקראה אוטומטית (עד ${TTS_MAX_CHARS} תווים)`);
     if (!ttsProvider()) throw new AppError(400, "הקראה אוטומטית לא הוגדרה במערכת. אפשר להקליט את השאלה בקול.");
     if (!(await rateLimit(`tts:${user.id}`, 200, 3600))) throw new AppError(429, "יותר מדי בקשות הקראה. נסו שוב בעוד כמה דקות.");
+    const fixes = await db.pronunciationFix.findMany({ where: { ownerId: user.id }, select: { written: true, spoken: true } });
+    const fixedWords = fixes.filter((f) => applyPronunciation(clean, [f]) !== clean).map((f) => f.written);
     let result;
     try {
-      result = await synthesize(clean);
+      result = await synthesize(applyPronunciation(clean, fixes), { provider });
     } catch (e) {
       console.error("[tts]", e);
       const reason = e instanceof TtsError ? e.reason : "service";
+      const used = (e instanceof TtsError && e.provider) || provider || ttsProvider()!;
       throw new AppError(
         502,
         reason === "key"
-          ? "שירות הקול סירב למפתח. בדקו ב-Vercel שהערך של AZURE_SPEECH_KEY הוא KEY 1 מ-Azure, ושהמשתנה מסומן Production."
+          ? `שירות הקול סירב למפתח. ${TTS_KEY_HINT[used]}`
           : reason === "region"
             ? "שם האזור של שירות הקול לא נכון. בדקו ב-Vercel שהערך של AZURE_SPEECH_REGION זהה ל-Location/Region ב-Azure (למשל northeurope)."
-            : reason === "timeout"
-              ? "שירות הקול לא ענה בזמן. נסו שוב בעוד רגע, או הקליטו את השאלה בקול."
-              : "שירות הקול החזיר שגיאה. נסו שוב בעוד רגע, או הקליטו את השאלה בקול.",
+            : reason === "quota"
+              ? "הגעתם למכסת ההקראות של שירות הקול להיום. נסו שוב מאוחר יותר, או בחרו קול אחר."
+              : reason === "timeout"
+                ? "שירות הקול לא ענה בזמן. נסו שוב בעוד רגע, או הקליטו את השאלה בקול."
+                : "שירות הקול החזיר שגיאה. נסו שוב בעוד רגע, או הקליטו את השאלה בקול.",
       );
     }
     const key = newStorageKey("QUESTION_AUDIO", result.mimeType);
@@ -363,8 +377,48 @@ export async function generateSpeechAction(
       console.error("[tts] saving audio failed", e);
       throw new AppError(500, `ההקראה נוצרה אבל לא נשמרה באחסון הקבצים. ${describeStorageError(e)}`);
     }
-    await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length });
-    return { ok: true, mediaId: media.id, meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length } };
+    await audit(user.id, "exam.tts", { type: "Exam", id: examId }, { chars: clean.length, provider: provider ?? ttsProviders()[0] });
+    return { ok: true, mediaId: media.id, meta: { mimeType: result.mimeType, name, sizeBytes: result.audio.length }, fixedWords };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// ---------------- Pronunciation dictionary ----------------
+
+export type PronunciationRow = { id: string; written: string; spoken: string };
+
+const pronunciationSchema = z.object({
+  written: z.string().max(80).transform(normalizeWritten).pipe(z.string().min(1, "כתבו את המילה")),
+  spoken: z.string().trim().max(120).pipe(z.string().min(1, "כתבו איך להקריא את המילה")),
+});
+
+export async function savePronunciationAction(input: { written: string; spoken: string }): Promise<ActionResult & { row?: PronunciationRow }> {
+  try {
+    const user = await requireUser(["TEACHER"]);
+    const d = pronunciationSchema.parse(input);
+    if (d.spoken.replace(/\s+/g, " ") === d.written)
+      throw new AppError(400, "ההקראה זהה למילה. כתבו אותה עם ניקוד, בכתיב מלא, או כפי שהיא נשמעת.");
+    const exists = await db.pronunciationFix.findUnique({ where: { ownerId_written: { ownerId: user.id, written: d.written } } });
+    if (!exists && (await db.pronunciationFix.count({ where: { ownerId: user.id } })) >= PRONUNCIATION_MAX)
+      throw new AppError(400, `אפשר לשמור עד ${PRONUNCIATION_MAX} מילים במילון.`);
+    const row = await db.pronunciationFix.upsert({
+      where: { ownerId_written: { ownerId: user.id, written: d.written } },
+      create: { ownerId: user.id, written: d.written, spoken: d.spoken },
+      update: { spoken: d.spoken },
+      select: { id: true, written: true, spoken: true },
+    });
+    return { ok: true, row };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function deletePronunciationAction(id: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser(["TEACHER"]);
+    await db.pronunciationFix.deleteMany({ where: { id: String(id), ownerId: user.id } });
+    return { ok: true };
   } catch (e) {
     return fail(e);
   }

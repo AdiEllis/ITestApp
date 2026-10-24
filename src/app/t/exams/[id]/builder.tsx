@@ -27,7 +27,7 @@ import type { BuilderExam, BuilderQuestion, BuilderSection, MediaMeta } from "@/
 import { toSaveInput } from "@/lib/builder-state";
 import { hasQuestionLimits, hasRecordLimit, MODE_LABELS, OPEN_RECORD_SEC, SECTION_KIND_LABELS } from "@/lib/exam-types";
 import { SubjectInput } from "@/components/ui/subject-input";
-import { ReadAloudPanel } from "./read-aloud";
+import { ReadAloudPanel, ReadAloudProvider, type VoiceOption } from "./read-aloud";
 import {
   addSourceFilesAction,
   duplicateExamAction,
@@ -36,6 +36,7 @@ import {
   saveExamAction,
   shareToLibraryAction,
   unpublishExamAction,
+  type PronunciationRow,
 } from "../../_actions/exams";
 import { uploadFile } from "@/lib/client/upload";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -99,6 +100,8 @@ export function ExamBuilder({
   sharedEntry,
   justCopied,
   ttsEnabled,
+  voices,
+  pronunciations,
 }: {
   examId: string;
   initial: BuilderExam;
@@ -110,6 +113,8 @@ export function ExamBuilder({
   sharedEntry: { id: string; sharedAt: string } | null;
   justCopied: boolean;
   ttsEnabled: boolean;
+  voices: VoiceOption[];
+  pronunciations: PronunciationRow[];
 }) {
   const router = useRouter();
   const [exam, setExam] = useState(initial);
@@ -220,6 +225,7 @@ export function ExamBuilder({
     }));
 
   return (
+    <ReadAloudProvider voices={voices} initialPronunciations={pronunciations}>
     <div className="pb-24">
       {/* Top bar */}
       <div className="z-20 -mx-4 mb-6 border-b border-line bg-canvas/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:-mx-10 lg:px-10">
@@ -495,6 +501,7 @@ export function ExamBuilder({
         </div>
       </div>
     </div>
+    </ReadAloudProvider>
   );
 }
 

@@ -119,6 +119,7 @@ model User {
   assignmentTargets AssignmentStudent[]
   attempts          Attempt[]
   auditLogs         AuditLog[]
+  pronunciations    PronunciationFix[]
 
   @@index([schoolId, role])
 }
@@ -282,6 +283,19 @@ model Question {
   points          Int         @default(25)
 
   @@index([sectionId, order])
+}
+
+/// A word the read-aloud voice says wrong, and how to make it say it right. Per teacher, applied to
+/// every read-aloud she creates.
+model PronunciationFix {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  written   String
+  spoken    String
+  createdAt DateTime @default(now())
+
+  @@unique([ownerId, written])
 }
 
 model MediaFile {
