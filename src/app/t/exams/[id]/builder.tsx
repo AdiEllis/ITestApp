@@ -263,25 +263,6 @@ export function ExamBuilder({
         </div>
       </div>
 
-      {!locked && status !== "ARCHIVED" && (
-        <ol className="mb-5 grid grid-cols-3 gap-2 text-sm" aria-label="שלבים">
-          {[
-            ["כותבים את השאלות", true],
-            ["לוחצים \"פרסום\"", status === "PUBLISHED"],
-            ["שולחים לכיתה", false],
-          ].map(([label, done], i) => {
-            const current = (i === 1 && status === "DRAFT") || (i === 2 && status === "PUBLISHED");
-            return (
-              <li key={i} className={cn("flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-center text-[13px] leading-tight sm:flex-row sm:gap-2 sm:px-3 sm:text-start sm:text-sm", current ? "border-brand bg-brand-soft/60 font-medium" : "border-line bg-surface text-ink-2")}>
-                <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold", done && !current ? "bg-ok text-white" : current ? "bg-brand text-white" : "bg-subtle text-ink-3")}>
-                  {done && !current ? <Check className="size-3.5" /> : i + 1}
-                </span>
-                <span>{label as string}</span>
-              </li>
-            );
-          })}
-        </ol>
-      )}
       {justCopied && (
         <Alert tone="ok" className="mb-4" title="המבחן הועתק לספרייה שלך">
           זהו עותק פרטי — שינויים כאן לא ישפיעו על המבחן במאגר המשותף.
@@ -317,7 +298,7 @@ export function ExamBuilder({
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         {/* Main column: sections & questions */}
         <fieldset disabled={readOnly} className="min-w-0 space-y-6">
-          <Card className="space-y-4 p-5">
+          <Card className="space-y-4 p-4 sm:p-5">
             <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
               <Field label="שם המבחן" htmlFor="title">
                 <Input id="title" value={exam.title} onChange={(e) => update((x) => ({ ...x, title: e.target.value }))} className="h-11 text-base font-medium" />
@@ -661,7 +642,7 @@ function SectionCard(props: {
           </div>
         </div>
       )}
-      <div className="space-y-4 p-5">
+      <div className="space-y-4 p-3 sm:p-5">
         {(!single || s.instructions) && (
           <Field label="הוראות לתלמידים (לא חובה)" htmlFor={`instr-${s.key}`}>
             <Textarea id={`instr-${s.key}`} dir="auto" rows={2} value={s.instructions ?? ""} onChange={(e) => props.onChange({ instructions: e.target.value })} />
@@ -802,12 +783,12 @@ function QuestionCard(props: {
         </IconBtn>
       </div>
       {open && (
-        <div className="space-y-5 border-t border-line p-4">
-          <Field label="השאלה" htmlFor={`qp-${q.key}`} hint="אפשר לכתוב עם ניקוד. ניקוד עוזר לקול לקרוא נכון.">
+        <div className="space-y-5 border-t border-line p-3 sm:p-4">
+          <Field label="השאלה" htmlFor={`qp-${q.key}`}>
             <Textarea
               id={`qp-${q.key}`}
               dir="auto"
-              rows={2}
+              rows={q.prompt.length > 300 ? 12 : 3}
               value={q.prompt}
               onChange={(e) => props.onChange({ prompt: e.target.value })}
               placeholder="לדוגמה: מה היו הגורמים לפרוץ מלחמת העולם הראשונה?"
@@ -1009,7 +990,7 @@ function IconBtn({ label, children, ...props }: React.ButtonHTMLAttributes<HTMLB
       type="button"
       title={label}
       aria-label={label}
-      className="grid size-8 place-items-center rounded-lg text-ink-3 hover:bg-subtle hover:text-ink disabled:opacity-30"
+      className="grid size-10 place-items-center rounded-lg text-ink-3 hover:bg-subtle hover:text-ink disabled:opacity-30 sm:size-8"
       {...props}
     >
       {children}

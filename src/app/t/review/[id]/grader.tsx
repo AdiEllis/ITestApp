@@ -123,7 +123,7 @@ export function Grader(props: {
   const ans = cur ? byQ.get(cur.questionId) : undefined;
 
   return (
-    <div className="space-y-5 pb-28">
+    <div className="space-y-5 pb-40 sm:pb-28">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -176,7 +176,7 @@ export function Grader(props: {
 
       <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
         {/* Question navigation */}
-        <nav aria-label="שאלות" className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <nav aria-label="שאלות" className={cn("flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible", counted.length < 2 && "hidden lg:flex")}>
           {counted.map((c, i) => {
             const s = snapshot.sections.find((x) => x.id === c.sectionId)!;
             const qq = s.questions.find((x) => x.id === c.questionId);
@@ -199,7 +199,8 @@ export function Grader(props: {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span dir="auto" className="block truncate text-start text-sm font-medium">
-                    {s.title.replace(/^Part\s+/i, "")} · {qq?.title || `Q${i + 1}`}
+                    {snapshot.sections.length > 1 ? `${s.title.replace(/^Part\s+/i, "")} · ` : ""}
+                    {qq?.title || (snapshot.mode === "SIMULATION" ? `Q${i + 1}` : `שאלה ${i + 1}`)}
                   </span>
                   <span className="block text-xs text-ink-3">
                     {!has ? "לא נענתה" : graded ? `${formatScore(scores[c.questionId])}/${c.points}` : `${c.points} נק׳`}
@@ -213,10 +214,12 @@ export function Grader(props: {
         {/* Active question */}
         {cur && section && (
           <div className="min-w-0 space-y-4">
-            <Card className="space-y-4 p-5">
-              <En as="p" className="text-xs font-medium uppercase tracking-wide text-brand">
-                {section.title}
-              </En>
+            <Card className="space-y-4 p-4 sm:p-5">
+              {snapshot.sections.length > 1 && (
+                <En as="p" className="text-xs font-medium uppercase tracking-wide text-brand">
+                  {section.title}
+                </En>
+              )}
               {q ? (
                 <>
                   <En as="p" className="text-[17px] font-semibold leading-snug">
@@ -233,7 +236,7 @@ export function Grader(props: {
               ) : (
                 <p className="text-sm text-warn">התלמיד/ה לא בחר/ה נושא בחלק זה</p>
               )}
-              <div className="space-y-3 rounded-xl bg-subtle p-4">
+              <div className="space-y-3 rounded-xl bg-subtle p-3 sm:p-4">
                 {ans?.textAnswer && (
                   <div>
                     <p className="mb-1 text-xs font-medium text-ink-3">תשובה בהקלדה</p>
@@ -363,21 +366,22 @@ export function Grader(props: {
 
       {/* Sticky action bar */}
       {!readOnly && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur lg:start-[248px]">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:start-[248px]">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3 lg:px-10">
             <div className="me-auto">
-              <p className="text-xs text-ink-3">ציון סופי (מתוך 100)</p>
-              <p className="text-xl font-semibold tabular">{formatScore(total)}</p>
+              <p className="text-xs text-ink-3">ציון סופי</p>
+              <p className="text-lg font-semibold tabular sm:text-xl">{formatScore(total)}</p>
             </div>
-            {message && <p className={cn("text-sm", message.tone === "ok" ? "text-ok" : "text-danger")} role="status">{message.text}</p>}
-            {dirty && !message && <p className="text-sm text-ink-3">שינויים לא שמורים</p>}
+            {message && <p className={cn("order-last w-full text-sm sm:order-none sm:w-auto", message.tone === "ok" ? "text-ok" : "text-danger")} role="status">{message.text}</p>}
+            {dirty && !message && <p className="hidden text-sm text-ink-3 sm:block">שינויים לא שמורים</p>}
             {attempt.gradingStatus === "PUBLISHED" && (
               <Button variant="ghost" size="sm" onClick={() => start(async () => { await unpublishGradesAction(attempt.id); router.refresh(); })} disabled={pending}>
                 ביטול פרסום
               </Button>
             )}
             <Button variant="secondary" onClick={() => save(false)} disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} שמירת טיוטה
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} <span className="sm:hidden">שמירה</span>
+              <span className="hidden sm:inline">שמירת טיוטה</span>
             </Button>
             <Button onClick={() => save(true)} disabled={pending}>
               <Send className="size-4" /> {attempt.gradingStatus === "PUBLISHED" ? "עדכון הפרסום" : "פרסום לתלמיד/ה"}

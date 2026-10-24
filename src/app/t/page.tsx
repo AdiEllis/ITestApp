@@ -59,7 +59,7 @@ export default async function TeacherDashboard() {
     { title: "צירוף תלמידים", body: "שולחים לקבוצת הכיתה קישור הצטרפות. כל תלמיד נכנס עם Google.", href: firstClass ? `/t/classes/${firstClass.id}` : "/t/classes", cta: "לקישור ההצטרפות", done: enrolled > 0 },
     { title: "יצירת מבחן ופרסום", body: "כותבים שאלות על החומר שנלמד, ומאשרים את ההקראה של כל שאלה.", href: "/t/exams/new", cta: "מבחן חדש", done: publishedExams > 0 },
     { title: "שליחת המבחן לכיתה", body: "בוחרים מבחן, כיתה ותאריך הגשה.", href: "/t/assignments/new", cta: "שליחה לכיתה", done: assignments > 0 },
-    { title: "בדיקת הגשה ראשונה", body: "מאזינים, בוחרים רמה בכל קריטריון ומפרסמים משוב.", href: "/t/review", cta: "לבדיקת הגשות", done: gradedCount > 0 },
+    { title: "בדיקת הגשה ראשונה", body: "מאזינים, נותנים ציון והערה, ומפרסמים לתלמיד/ה.", href: "/t/review", cta: "לבדיקת הגשות", done: gradedCount > 0 },
   ];
   const setupDone = steps.every((x) => x.done);
 
