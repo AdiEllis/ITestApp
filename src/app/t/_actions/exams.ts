@@ -18,6 +18,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { synthesize, TtsError, ttsProvider, TTS_MAX_CHARS, TTS_PROVIDER_LABELS, type TtsProvider } from "@/lib/tts";
 import { applyPronunciation, normalizeWritten, PRONUNCIATION_MAX } from "@/lib/pronunciation";
 import { toBuilderState, type BuilderExam, type MediaMeta } from "@/lib/builder-state";
+import { canParse, ImportError, parseExamFile, type ParsedExam } from "@/lib/exam-import";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; problems?: string[] };
 
@@ -112,36 +113,117 @@ export async function createExamAction(_: unknown, form: FormData): Promise<Acti
   redirect(`/t/exams/${exam.id}`);
 }
 
+const importedQuestion = z.object({
+  prompt: z.string().trim().max(TTS_MAX_CHARS),
+  subQuestions: z.array(z.string().trim().max(1000)).max(12).default([]),
+  points: z.number().int().min(1).max(100).nullable().default(null),
+});
 const importSchema = z.object({
   title: z.string().trim().min(1, "יש להזין שם למבחן").max(140),
   subject: subjectField,
   mode: modeEnum,
-  mediaIds: z.array(z.string()).min(1, "יש להעלות לפחות קובץ אחד").max(40),
+  description: z.string().trim().max(4000).nullish(),
+  mediaIds: z.array(z.string()).max(40).default([]),
+  // The questions read from the files, after the teacher reviewed them. Empty: she types them in the builder.
+  sections: z
+    .array(
+      z.object({
+        title: z.string().trim().max(140),
+        instructions: z.string().trim().max(4000).default(""),
+        questions: z.array(importedQuestion).max(30),
+      }),
+    )
+    .max(12)
+    .default([]),
 });
 
-/** Option B: create a draft exam from uploaded files; the teacher maps files to questions in the builder. */
-export async function createImportedExamAction(input: z.infer<typeof importSchema>): Promise<ActionResult & { examId?: string }> {
+/** Creates a draft exam from uploaded files, with the questions read from them (if any). */
+export async function createImportedExamAction(input: z.input<typeof importSchema>): Promise<ActionResult & { examId?: string }> {
   try {
     const user = await requireUser(["TEACHER"]);
     const d = importSchema.parse(input);
     const media = await db.mediaFile.findMany({ where: { id: { in: d.mediaIds }, ownerId: user.id, status: "READY", kind: "SOURCE_DOCUMENT" } });
     if (media.length !== new Set(d.mediaIds).size) throw new AppError(400, "חלק מהקבצים לא הועלו בהצלחה");
+    const sections = d.sections
+      .map((s) => ({ ...s, questions: s.questions.filter((q) => q.prompt || q.subQuestions.some(Boolean)) }))
+      .filter((s) => s.questions.length);
+    if (!media.length && !sections.length) throw new AppError(400, "יש להעלות לפחות קובץ אחד");
     const simulation = d.mode === "SIMULATION";
+    const count = sections.reduce((n, s) => n + s.questions.length, 0);
+    // Without points in the file, the questions share 100 points.
+    const defaultPoints = count ? Math.max(1, Math.round(100 / count)) : 25;
     const exam = await db.exam.create({
       data: {
         ownerId: user.id,
         title: d.title,
         subject: d.subject,
+        description: d.description || null,
         level: "OTHER",
         mode: d.mode,
         rubricId: await systemRubricId(),
         settings: examSettingsSchema.parse({ totalTimeLimitSec: null, allowBackNavigation: !simulation }),
-        sections: { create: [{ order: 0, title: "חלק 1", kind: "GENERAL", choiceMode: "ALL" }] },
+        sections: {
+          create: (sections.length ? sections : [{ title: "חלק 1", instructions: "", questions: [] }]).map((s, i) => ({
+            order: i,
+            title: s.title || (sections.length > 1 ? `חלק ${i + 1}` : "שאלות"),
+            instructions: s.instructions || null,
+            kind: "GENERAL" as const,
+            choiceMode: "ALL" as const,
+            questions: {
+              create: s.questions.map((q, j) => ({
+                order: j,
+                title: "",
+                prompt: q.prompt,
+                subQuestions: q.subQuestions.filter(Boolean),
+                prepTimeSec: 0,
+                maxRecordSec: OPEN_RECORD_SEC,
+                points: q.points ?? defaultPoints,
+                allowReRecord: true,
+              })),
+            },
+          })),
+        },
         sourceFiles: { create: media.map((m) => ({ mediaId: m.id, label: m.originalName })) },
       },
     });
-    await audit(user.id, "exam.import", { type: "Exam", id: exam.id }, { files: media.length });
+    await audit(user.id, "exam.import", { type: "Exam", id: exam.id }, { files: media.length, questions: count });
     return { ok: true, examId: exam.id };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Reads the questions out of the uploaded exam files, for the teacher to review before the exam is created. */
+export async function parseExamFilesAction(mediaIds: string[]): Promise<ActionResult & { exam?: ParsedExam; warnings?: string[] }> {
+  try {
+    const user = await requireUser(["TEACHER"]);
+    const ids = z.array(z.string().max(40)).min(1).max(40).parse(mediaIds);
+    if (!(await rateLimit(`import:${user.id}`, 60, 3600))) throw new AppError(429, "יותר מדי קבצים בשעה האחרונה. נסו שוב בעוד כמה דקות.");
+    const media = await db.mediaFile.findMany({ where: { id: { in: ids }, ownerId: user.id, status: "READY", kind: "SOURCE_DOCUMENT" } });
+    const files = ids.map((id) => media.find((m) => m.id === id)).filter((m) => m && canParse(m.mimeType)) as typeof media;
+    if (!files.length) throw new AppError(400, "לא הועלה קובץ מבחן (Word, PDF או תמונה) שאפשר לקרוא ממנו שאלות.");
+    const warnings: string[] = [];
+    const results = await Promise.all(
+      files.map(async (m) => {
+        try {
+          return await parseExamFile(await storage().readHead(m.storageKey, m.sizeBytes), m.mimeType);
+        } catch (e) {
+          if (!(e instanceof ImportError)) console.error("[import]", e);
+          warnings.push(`${m.originalName ?? "קובץ"}: ${e instanceof ImportError ? e.message : "הקובץ לא נקרא."}`);
+          return null;
+        }
+      }),
+    );
+    const read = results.filter((r): r is ParsedExam => !!r);
+    if (!read.length) throw new AppError(422, warnings.join(" "));
+    const exam: ParsedExam = {
+      title: read.find((r) => r.title)?.title ?? "",
+      description: read.find((r) => r.description)?.description ?? "",
+      method: read.every((r) => r.method === "ai") ? "ai" : "text",
+      sections: read.flatMap((r) => r.sections).slice(0, 12),
+    };
+    await audit(user.id, "exam.import.parse", undefined, { files: files.length, questions: exam.sections.reduce((n, s) => n + s.questions.length, 0), method: exam.method });
+    return { ok: true, exam, warnings };
   } catch (e) {
     return fail(e);
   }

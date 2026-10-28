@@ -12,7 +12,7 @@ export const metadata = { title: "עריכת מבחן" };
 // and can take a minute or two.
 export const maxDuration = 60;
 
-export default async function ExamPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ copied?: string }> }) {
+export default async function ExamPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ copied?: string; imported?: string }> }) {
   const user = await requireUser(["TEACHER"]);
   const { id } = await params;
   const own = await getOwnExam(user, id).catch(() => null);
@@ -38,6 +38,7 @@ export default async function ExamPage({ params, searchParams }: { params: Promi
       sourceFiles={sources.map((s) => ({ id: s.media.id, name: s.media.originalName, mimeType: s.media.mimeType, sizeBytes: s.media.sizeBytes }))}
       sharedEntry={shared ? { id: shared.id, sharedAt: shared.sharedAt!.toISOString() } : null}
       justCopied={(await searchParams).copied === "1"}
+      justImported={(await searchParams).imported === "1"}
       ttsEnabled={voices.length > 0}
       voices={voices.map((id) => ({ id, label: TTS_PROVIDER_LABELS[id] }))}
       pronunciations={pronunciations}

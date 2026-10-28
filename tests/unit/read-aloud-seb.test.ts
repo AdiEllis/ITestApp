@@ -29,8 +29,8 @@ describe("read-aloud text", () => {
   it("the test voice produces a real audio file the upload checks accept", async () => {
     process.env.TTS_PROVIDER = "fake";
     const r = await synthesize("שלום עולם");
-    expect(r.mimeType).toBe("audio/wav");
-    expect(sniff(r.audio)).toBe("wav");
+    expect(r.mimeType).toBe("audio/mpeg");
+    expect(sniff(r.audio)).toBe("mp3");
     delete process.env.TTS_PROVIDER;
   });
 });

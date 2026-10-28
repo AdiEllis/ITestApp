@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/ui/card";
 import { ImportWizard } from "./wizard";
 
 export const metadata = { title: "העלאת מבחן מוכן" };
+// Reading the questions out of a file can take up to a minute.
+export const maxDuration = 60;
 
 export default async function ImportPage() {
   await requireUser(["TEACHER"]);
@@ -17,7 +19,7 @@ export default async function ImportPage() {
           </Link>
         }
         title="העלאת מבחן מוכן"
-        description="העלו את קובצי המבחן (PDF, Word, שמע, וידאו). בשלב הבא תוכלו להקליד את השאלות ולשייך את קובצי השמע והווידאו לכל שאלה."
+        description="העלו את המבחן כקובץ Word, PDF או צילום. המערכת תקרא ממנו את השאלות, תבדקו ותתקנו אותן, ואז תיצור לכל שאלה הקראה לתלמיד/ה."
       />
       <ImportWizard />
     </div>
