@@ -139,7 +139,8 @@ test.describe.serial("full teacher ↔ student flow", () => {
     await expect(teacher.getByText("תוכן הקובץ אינו תואם את סוג הקובץ")).toBeVisible({ timeout: 20_000 });
     await expect(teacher.getByLabel("הועלה")).toHaveCount(2);
     await teacher.locator("#title").fill("Imported practice");
-    await teacher.getByRole("button", { name: "יצירת מבחן והמשך לשיוך" }).click();
+    // This PDF has no questions to read, so the teacher types them in the builder.
+    await teacher.getByRole("button", { name: "דילוג: אקליד את השאלות בעצמי בעורך" }).click();
     await expect(teacher).toHaveURL(/\/t\/exams\/(?!new$|import$)\w+$/);
     await expect(teacher.getByText("exam.pdf").first()).toBeVisible();
     await teacher.getByRole("button", { name: "הוספת שאלה" }).click();

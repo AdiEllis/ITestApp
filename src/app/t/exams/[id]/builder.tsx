@@ -21,13 +21,14 @@ import {
   Share2,
   Trash2,
   Upload,
+  Volume2,
   X,
 } from "lucide-react";
 import type { BuilderExam, BuilderQuestion, BuilderSection, MediaMeta } from "@/lib/builder-state";
 import { toSaveInput } from "@/lib/builder-state";
-import { hasQuestionLimits, hasRecordLimit, MODE_LABELS, OPEN_RECORD_SEC, SECTION_KIND_LABELS } from "@/lib/exam-types";
+import { audioMatchesText, hasQuestionLimits, hasRecordLimit, MODE_LABELS, OPEN_RECORD_SEC, SECTION_KIND_LABELS, spokenText } from "@/lib/exam-types";
 import { SubjectInput } from "@/components/ui/subject-input";
-import { ReadAloudPanel, ReadAloudProvider, type VoiceOption } from "./read-aloud";
+import { ReadAllPanel, ReadAloudPanel, ReadAloudProvider, type VoiceOption } from "./read-aloud";
 import {
   addSourceFilesAction,
   duplicateExamAction,
@@ -99,6 +100,7 @@ export function ExamBuilder({
   sourceFiles: initialSources,
   sharedEntry,
   justCopied,
+  justImported,
   ttsEnabled,
   voices,
   pronunciations,
@@ -112,6 +114,7 @@ export function ExamBuilder({
   sourceFiles: SourceFile[];
   sharedEntry: { id: string; sharedAt: string } | null;
   justCopied: boolean;
+  justImported: boolean;
   ttsEnabled: boolean;
   voices: VoiceOption[];
   pronunciations: PronunciationRow[];
@@ -224,6 +227,21 @@ export function ExamBuilder({
       sections: e.sections.map((s, i) => (i === si ? { ...s, questions: s.questions.map((q, j) => (j === qi ? { ...q, ...patch } : q)) } : s)),
     }));
 
+  // Questions with text but no current read-aloud, for creating them all at once.
+  const unread = exam.sections.flatMap((sec) =>
+    sec.questions.filter((q) => spokenText(q) && (!q.audioId || !audioMatchesText(q))).map((q) => ({ key: q.key, text: spokenText(q) })),
+  );
+  const setAudioByKey = (key: string, text: string, mediaId: string, meta: MediaMeta[string] | undefined) => {
+    addMedia(mediaId, meta);
+    update((e) => ({
+      ...e,
+      sections: e.sections.map((sec) => ({
+        ...sec,
+        questions: sec.questions.map((q) => (q.key === key ? { ...q, audioId: mediaId, audioSource: "TTS" as const, audioText: text, audioApproved: false } : q)),
+      })),
+    }));
+  };
+
   return (
     <ReadAloudProvider voices={voices} initialPronunciations={pronunciations}>
     <div className="pb-24">
@@ -311,6 +329,8 @@ export function ExamBuilder({
               <Input id="description" dir="auto" value={exam.description ?? ""} placeholder="לדוגמה: ענו בקול ברור. אפשר לחשוב לפני שמתחילים להקליט." onChange={(e) => update((x) => ({ ...x, description: e.target.value }))} />
             </Field>
           </Card>
+
+          {ttsEnabled && !readOnly && !exam.settings.deviceVoiceFallback && (justImported || unread.length > 1) && <ReadAllPanel examId={examId} questions={unread} highlight={justImported} onAudio={setAudioByKey} />}
 
           {exam.sections.map((s, si) => (
             <SectionCard
@@ -726,6 +746,12 @@ function SectionCard(props: {
   );
 }
 
+function readStatus(q: BuilderQuestion) {
+  if (!q.audioId) return "אין עדיין הקראה";
+  if (!audioMatchesText(q)) return "צריך הקראה חדשה";
+  return q.audioApproved ? "ההקראה אושרה" : "צריך להאזין להקראה ולאשר";
+}
+
 function QuestionCard(props: {
   q: BuilderQuestion;
   index: number;
@@ -761,6 +787,16 @@ function QuestionCard(props: {
             </span>
           )}
         </button>
+        {props.ttsEnabled && !props.deviceVoiceFallback && spokenText(q) && (
+          <span
+            role="img"
+            title={readStatus(q)}
+            aria-label={readStatus(q)}
+            className={cn("shrink-0", q.audioId && audioMatchesText(q) && q.audioApproved ? "text-ok" : q.audioId && audioMatchesText(q) ? "text-warn" : "text-ink-3")}
+          >
+            <Volume2 className="size-4" />
+          </span>
+        )}
         <span className="hidden shrink-0 text-xs text-ink-3 tabular sm:inline">
           {q.points} נק׳{hasMedia ? " · מדיה" : ""}
         </span>

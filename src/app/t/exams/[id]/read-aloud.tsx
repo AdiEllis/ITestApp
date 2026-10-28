@@ -301,3 +301,78 @@ export function ReadAloudPanel({
     </div>
   );
 }
+
+/**
+ * Creates the automatic read-aloud for every question that has none (or whose text changed), one
+ * question after another. The teacher still listens to each one and approves it.
+ */
+export function ReadAllPanel({
+  examId,
+  questions,
+  highlight,
+  onAudio,
+}: {
+  examId: string;
+  questions: { key: string; text: string }[];
+  /** Right after an exam was made from a file. */
+  highlight: boolean;
+  onAudio: (key: string, text: string, mediaId: string, meta: MediaMeta[string] | undefined) => void;
+}) {
+  const { voice } = useContext(ReadAloudContext);
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [finished, setFinished] = useState(false);
+
+  async function run() {
+    const todo = questions.slice();
+    setRunning(true);
+    setError(null);
+    setFinished(false);
+    setDone(0);
+    setTotal(todo.length);
+    for (const [i, q] of todo.entries()) {
+      let r: Awaited<ReturnType<typeof generateSpeechAction>>;
+      try {
+        r = await generateSpeechAction(examId, q.text, voice);
+      } catch {
+        r = { ok: false, error: "החיבור לשרת נכשל." };
+      }
+      if (!r.ok || !r.mediaId) {
+        setError(`ההקראה של שאלה ${i + 1} מתוך ${todo.length} לא נוצרה: ${r.ok ? "שגיאה" : r.error} אפשר ללחוץ שוב כדי להמשיך.`);
+        setRunning(false);
+        return;
+      }
+      onAudio(q.key, q.text, r.mediaId, r.meta);
+      setDone(i + 1);
+    }
+    setRunning(false);
+    setFinished(true);
+  }
+
+  if (!questions.length && !running && !finished) return null;
+  return (
+    <div className={`space-y-3 rounded-xl border p-4 ${highlight ? "border-brand bg-brand-soft/50" : "border-brand-line bg-brand-soft/30"}`}>
+      {highlight && !finished && <p className="font-semibold">המבחן נוצר מהקובץ. עכשיו ניצור לכל שאלה הקראה לתלמיד/ה.</p>}
+      {finished ? (
+        <p className="flex items-center gap-2 text-sm text-ok">
+          <CheckCircle2 className="size-4" /> נוצרו {total} הקראות. האזינו לכל אחת ליד השאלה וסמנו שהיא נכונה, ואז אפשר לפרסם.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={run} disabled={running}>
+            {running ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+            {running ? `יוצרים הקראות… ${done} מתוך ${total}` : `יצירת הקראה ל-${questions.length} השאלות`}
+          </Button>
+          {!running && <span className="text-sm text-ink-3">שאלה אחרי שאלה. אפשר להמשיך לעבוד בינתיים.</span>}
+        </div>
+      )}
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
