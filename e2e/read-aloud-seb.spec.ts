@@ -42,6 +42,7 @@ test("read-aloud must be approved; a classroom exam opens only in Safe Exam Brow
   await t.locator("#subject").fill("היסטוריה");
   await t.getByRole("button", { name: "יצירה", exact: true }).click();
   await expect(t).toHaveURL(/\/t\/exams\/(?!new$)\w+$/);
+  const examUrl = t.url();
   await expect(t.locator("#subject")).toHaveValue("היסטוריה");
 
   const question = "מה היו הגורמים לפרוץ מלחמת העולם הראשונה?";
@@ -150,5 +151,14 @@ test("read-aloud must be approved; a classroom exam opens only in Safe Exam Brow
   // The teacher sees the submission.
   await t.reload();
   await expect(t.getByText("ממתין לבדיקה", { exact: true })).toBeVisible();
+
+  // The exam is now locked; "שכפול לגרסה חדשה" makes an editable copy with its read-aloud.
+  await t.goto(examUrl);
+  await expect(t.getByText("המבחן נעול לעריכה")).toBeVisible();
+  await t.getByRole("button", { name: "שכפול לגרסה חדשה" }).click();
+  await expect(t).not.toHaveURL(examUrl, { timeout: 20_000 });
+  await expect(t.locator("#title")).toHaveValue("מלחמת העולם הראשונה (עותק)");
+  await expect(t.locator("#title")).toBeEditable();
+  await expect(t.getByText("המבחן נעול לעריכה")).toHaveCount(0);
   await tctx.close();
 });

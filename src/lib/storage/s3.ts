@@ -124,9 +124,18 @@ export const s3Driver: StorageDriver = {
     }
   },
   async copy(fromKey, toKey) {
-    await s3().send(
-      new CopyObjectCommand({ Bucket: bucket(), Key: toKey, CopySource: `${bucket()}/${encodeURIComponent(fromKey)}` }),
-    );
+    try {
+      await s3().send(
+        new CopyObjectCommand({ Bucket: bucket(), Key: toKey, CopySource: `${bucket()}/${fromKey.split("/").map(encodeURIComponent).join("/")}` }),
+      );
+    } catch (e) {
+      // Some S3-compatible services (Backblaze B2) refuse server-side copies from the SDK.
+      // Download and upload again, the path every other file already takes.
+      console.warn("[storage] CopyObject failed, copying through download", e);
+      const r = await s3().send(new GetObjectCommand({ Bucket: bucket(), Key: fromKey }));
+      const bytes = await r.Body!.transformToByteArray();
+      await s3Driver.put(toKey, Buffer.from(bytes), r.ContentType || "application/octet-stream");
+    }
   },
   async delete(key) {
     await s3().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));

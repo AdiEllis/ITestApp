@@ -208,7 +208,15 @@ export function ExamBuilder({
     setProblems([]);
     try {
       if (saveState !== "saved" && !(await save())) return;
-      const r = await fn();
+      let r: Awaited<ReturnType<typeof fn>>;
+      try {
+        r = await fn();
+      } catch (e) {
+        // A redirect from the server action is navigation, not a failure.
+        if ((e as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+        setNotice("הפעולה לא הצליחה: השרת לא ענה. נסו שוב בעוד רגע.");
+        return;
+      }
       if (r && !r.ok) {
         setNotice(r.error ?? "הפעולה נכשלה");
         setProblems(r.problems ?? []);

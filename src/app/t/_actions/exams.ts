@@ -584,7 +584,9 @@ export async function duplicateExamAction(examId: string): Promise<ActionResult>
     newId = copy.id;
     await audit(user.id, "exam.duplicate", { type: "Exam", id: copy.id }, { from: examId });
   } catch (e) {
-    return fail(e);
+    if (e instanceof AppError || e instanceof z.ZodError) return fail(e);
+    console.error("[exam.duplicate]", e);
+    return { ok: false, error: `השכפול נכשל. ${describeStorageError(e)}` };
   }
   redirect(`/t/exams/${newId}`);
 }
